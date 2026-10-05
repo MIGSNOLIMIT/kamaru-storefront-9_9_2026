@@ -1,0 +1,43 @@
+{
+  "name": "kamaru-storefront",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "cms"
+  ],
+  "scripts": {
+    "dev": "tsx server.ts",
+    "start": "tsx server.ts",
+    "dev:storefront": "vite",
+    "dev:cms": "npm run dev -w kamaru-cms",
+    "build": "tsc -b && vite build && npm run build -w kamaru-cms",
+    "build:cms": "npm run build -w kamaru-cms",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/montserrat": "^5.3.0",
+    "@supabase/supabase-js": "^2.109.0",
+    "tsx": "^4.20.6",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.41.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.3",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "concurrently": "^9.2.1",
+    "oxlint": "^1.79.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2"
+  }
+}

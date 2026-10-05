@@ -1,0 +1,32 @@
+{
+  "users": [
+    {
+      "id": "d153eb9a-c3eb-4006-9602-1104625e7fc2",
+      "email": "admin@kamaru.local",
+      "passwordHash": "130541e9ece12778d31a85a103fe0286bbd718e73d3f44d53becd759099453bb",
+      "profile": {
+        "id": "d153eb9a-c3eb-4006-9602-1104625e7fc2",
+        "email": "admin@kamaru.local",
+        "fullName": "Kamaru Admin",
+        "role": "admin",
+        "createdAt": "2026-10-05T02:52:47.342Z",
+        "lastActiveAt": "2026-10-05T02:52:47.342Z"
+      }
+    },
+    {
+      "id": "412e2393-620d-4cd7-93b0-3e87464cec76",
+      "email": "migsnolimit26@gmail.com",
+      "passwordHash": "faa8e354792ef64e762845a550a6607f25540c014c188ca23c574c328597b549",
+      "profile": {
+        "id": "412e2393-620d-4cd7-93b0-3e87464cec76",
+        "email": "migsnolimit26@gmail.com",
+        "fullName": "Migs",
+        "role": "admin",
+        "createdAt": "2026-10-05T02:56:39.384Z",
+        "lastActiveAt": "2026-10-05T02:56:39.384Z"
+      }
+    }
+  ],
+  "orders": [],
+  "inquiries": []
+}

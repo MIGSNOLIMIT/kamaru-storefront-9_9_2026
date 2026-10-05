@@ -1,0 +1,51 @@
+import type { Article, Category, ColorOption, HomeSection, Product, SiteSettings } from '../../src/types'
+
+export interface Snapshot {
+  products: Product[]
+  categories: Category[]
+  articles: Article[]
+  homeSections: HomeSection[]
+  siteSettings: SiteSettings
+  colors: ColorOption[]
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error((body as { error?: string }).error ?? `Request failed (${res.status})`)
+  return body as T
+}
+
+export const api = {
+  snapshot: () => request<Snapshot>('/api/admin/snapshot'),
+  reset: () => request<Snapshot>('/api/admin/reset', { method: 'POST' }),
+  saveProduct: (product: Product, isNew: boolean) =>
+    request<Product>(isNew ? '/api/admin/products' : `/api/admin/products/${encodeURIComponent(product.id)}`, {
+      method: isNew ? 'POST' : 'PUT',
+      body: JSON.stringify(product),
+    }),
+  deleteProduct: (id: string) => request<{ ok: boolean }>(`/api/admin/products/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  saveCategory: (category: Category, isNew: boolean) =>
+    request<Category>(isNew ? '/api/admin/categories' : `/api/admin/categories/${encodeURIComponent(category.id)}`, {
+      method: isNew ? 'POST' : 'PUT',
+      body: JSON.stringify(category),
+    }),
+  deleteCategory: (id: string) => request<{ ok: boolean }>(`/api/admin/categories/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  saveArticle: (article: Article, isNew: boolean) =>
+    request<Article>(isNew ? '/api/admin/articles' : `/api/admin/articles/${encodeURIComponent(article.id)}`, {
+      method: isNew ? 'POST' : 'PUT',
+      body: JSON.stringify(article),
+    }),
+  deleteArticle: (id: string) => request<{ ok: boolean }>(`/api/admin/articles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  saveSections: (sections: HomeSection[]) => request<HomeSection[]>('/api/admin/sections', { method: 'PUT', body: JSON.stringify(sections) }),
+  saveSettings: (settings: SiteSettings) => request<SiteSettings>('/api/admin/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+}
+
+export const storefrontUrl = '/'
+
+export const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+export const formatPrice = (value: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(value)

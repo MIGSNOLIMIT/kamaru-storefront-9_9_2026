@@ -1,0 +1,41 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/montserrat";
+
+@theme {
+  --color-ink: #171916;
+  --color-bone: #ffffff;
+  --color-clay: #ea580c;
+  --color-olive: #5a6045;
+  --color-khaki: #fdba74;
+  --font-sans: "Inter Variable", sans-serif;
+  --font-display: "Montserrat Variable", sans-serif;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; min-width: 320px; background: var(--color-bone); color: var(--color-ink); font-family: var(--font-sans); }
+  h1, h2, h3, h4 { font-family: var(--font-display); }
+  button, a, input, select, textarea { outline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--color-clay); }
+  button { cursor: pointer; }
+}
+
+@utility container-site {
+  width: min(100% - 2rem, 82.5rem);
+  margin-inline: auto;
+}
+
+@utility section-space {
+  padding-block: clamp(3.5rem, 8vw, 7rem);
+}
+
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-reveal { animation: reveal .55s ease-out both; }
+.scrollbar-hide { scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
