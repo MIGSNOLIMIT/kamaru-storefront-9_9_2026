@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { HomeSection, SectionContent, SectionContentItem } from '../../../src/types'
-import { api } from '../api'
+import type { HomeSection, Product, SectionContent, SectionContentItem } from '../../../src/types'
+import { api, type Snapshot } from '../api'
 import { ImageField } from '../components/ImageField'
-import { Button, Card, Field, Input, Notice, PageHeader, Textarea } from '../ui'
+import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
 
 const allTypes: HomeSection['type'][] = ['hero', 'benefits', 'categories', 'new-arrivals', 'editorial', 'water-resistant', 'story', 'best-sellers', 'lifestyle', 'journal', 'newsletter']
 
@@ -13,11 +13,70 @@ const defaultBenefitItems: SectionContentItem[] = [
   { title: 'DESIGNED FOR COMFORT', text: 'Carry your load with ease.' },
 ]
 
+function ProductPicker({
+  productIds,
+  products,
+  onChange,
+}: {
+  productIds: string[]
+  products: Product[]
+  onChange: (ids: string[]) => void
+}) {
+  const [pickId, setPickId] = useState('')
+  const published = products.filter((p) => p.status === 'published' && !p.flags.discontinued)
+  const available = published.filter((p) => !productIds.includes(p.id))
+  const add = () => {
+    if (!pickId || productIds.includes(pickId)) return
+    onChange([...productIds, pickId])
+    setPickId('')
+  }
+  const move = (index: number, dir: -1 | 1) => {
+    const swap = index + dir
+    if (swap < 0 || swap >= productIds.length) return
+    const next = [...productIds]
+    ;[next[index], next[swap]] = [next[swap], next[index]]
+    onChange(next)
+  }
+  const nameFor = (id: string) => products.find((p) => p.id === id)?.name ?? id
+
+  return (
+    <div className="md:col-span-2 space-y-3">
+      <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">FEATURED PRODUCTS</p>
+      <p className="text-xs text-ink/45">Pick any number of published products. Leave empty to use automatic flag-based products on the storefront.</p>
+      <div className="flex flex-wrap gap-2">
+        <Select value={pickId} onChange={(e) => setPickId(e.target.value)} className="max-w-md flex-1">
+          <option value="">Select a product…</option>
+          {available.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </Select>
+        <Button type="button" variant="outline" disabled={!pickId} onClick={add}>Add</Button>
+      </div>
+      {productIds.length > 0 && (
+        <ul className="space-y-2">
+          {productIds.map((id, index) => (
+            <li key={id} className="flex flex-wrap items-center justify-between gap-2 border border-ink/10 px-3 py-2 text-sm">
+              <span className="font-bold">{nameFor(id)}</span>
+              <div className="flex gap-1">
+                <Button type="button" variant="ghost" disabled={index === 0} onClick={() => move(index, -1)}>Up</Button>
+                <Button type="button" variant="ghost" disabled={index === productIds.length - 1} onClick={() => move(index, 1)}>Down</Button>
+                <Button type="button" variant="ghost" onClick={() => onChange(productIds.filter((x) => x !== id))}>Remove</Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function SectionContentEditor({
   section,
+  products,
   onChange,
 }: {
   section: HomeSection
+  products: Product[]
   onChange: (content: SectionContent) => void
 }) {
   const c = section.content ?? {}
@@ -66,8 +125,15 @@ function SectionContentEditor({
           ))}
         </div>
       )}
+      {(section.type === 'new-arrivals' || section.type === 'best-sellers') && (
+        <ProductPicker
+          productIds={c.productIds ?? []}
+          products={products}
+          onChange={(productIds) => set({ productIds: productIds.length ? productIds : undefined })}
+        />
+      )}
       <p className="md:col-span-2 text-xs text-ink/45">
-        Product grids (new arrivals, best sellers), category tiles, and journal cards still come from Products, Categories, and Journal. Empty fields use the current storefront defaults.
+        Category tiles and journal cards still come from Categories and Journal. Empty text fields use the current storefront defaults.
       </p>
     </div>
   )
@@ -75,12 +141,16 @@ function SectionContentEditor({
 
 export function Sections() {
   const [sections, setSections] = useState<HomeSection[]>([])
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([])
   const [error, setError] = useState('')
   const [saved, setSaved] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
-    void api.snapshot().then((data) => setSections([...data.homeSections].sort((a, b) => a.sortOrder - b.sortOrder))).catch((e: Error) => setError(e.message))
+    void api.snapshot().then((data: Snapshot) => {
+      setCatalogProducts(data.products)
+      setSections([...data.homeSections].sort((a, b) => a.sortOrder - b.sortOrder))
+    }).catch((e: Error) => setError(e.message))
   }, [])
 
   const persist = async (next: HomeSection[]) => {
@@ -142,7 +212,7 @@ export function Sections() {
             </div>
             {editingId === section.id && (
               <>
-                <SectionContentEditor section={section} onChange={(content) => updateContent(index, content)} />
+                <SectionContentEditor section={section} products={catalogProducts} onChange={(content) => updateContent(index, content)} />
                 <Button type="button" className="mt-4" onClick={() => saveSectionContent()}>Save section content</Button>
               </>
             )}

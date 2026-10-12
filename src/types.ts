@@ -107,6 +107,8 @@ export interface SectionContent {
   ctaLabel?: string
   ctaHref?: string
   items?: SectionContentItem[]
+  /** When set on new-arrivals / best-sellers, show these catalog products in order. */
+  productIds?: string[]
 }
 
 export interface AboutPageContent {

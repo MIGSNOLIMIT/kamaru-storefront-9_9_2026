@@ -1,7 +1,8 @@
 import { ArrowRight, Droplets, Hammer, HeartHandshake, MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
-import { useArticles, useCategories, useHomeSections, useProducts } from '../hooks/useContent'
+import { useArticles, useCategories, useHomeSections } from '../hooks/useContent'
+import { useHomeProductList } from '../lib/homeProducts'
 import type { HomeSection } from '../types'
 import { ProductGrid } from '../components/Product'
 import { Button, Media, SectionHeading } from '../components/UI'
@@ -107,7 +108,7 @@ function FeaturedCategoriesBlock({ section }: BlockProps) {
 
 function NewArrivalsBlock({ section }: BlockProps) {
   const c = sectionContent(section)
-  const { data } = useProducts({ flag: 'newArrival', limit: 8 })
+  const products = useHomeProductList(c.productIds, { flag: 'newArrival', limit: 8 })
   const title = c.headline || 'NEW ARRIVAL'
   const text = c.body || 'Pack it right. Fit it right.'
   const ctaLabel = c.ctaLabel || 'View all arrivals'
@@ -116,7 +117,7 @@ function NewArrivalsBlock({ section }: BlockProps) {
     <section className="section-space bg-[#eae5d9]">
       <div className="container-site">
         <SectionHeading title={title} text={text} />
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"><ProductGrid products={data.items} /></div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"><ProductGrid products={products} /></div>
         <div className="mt-10 text-center"><Link to={ctaHref}><Button variant="outline">{ctaLabel}</Button></Link></div>
       </div>
     </section>
@@ -201,7 +202,7 @@ function StoryBlock({ section }: BlockProps) {
 
 function BestSellersBlock({ section }: BlockProps) {
   const c = sectionContent(section)
-  const { data } = useProducts({ flag: 'bestSeller', limit: 6 })
+  const products = useHomeProductList(c.productIds, { flag: 'bestSeller', limit: 6 })
   const title = c.headline || 'BEST SELLERS'
   const text = c.body || 'Proven Kamaru carry for every kind of day.'
   return (
@@ -209,7 +210,7 @@ function BestSellersBlock({ section }: BlockProps) {
       <div className="container-site">
         <SectionHeading title={title} text={text} />
         <div className="scrollbar-hide flex snap-x gap-5 overflow-x-auto pb-6">
-          {data.items.map((p) => (
+          {products.map((p) => (
             <div key={p.id} className="w-[78vw] shrink-0 snap-start text-ink sm:w-[45vw] lg:w-[calc(25%-15px)]">
               <ProductGrid products={[p]} />
             </div>
