@@ -1,0 +1,178 @@
+import { useState } from 'react'
+import type { ColorOption, Product } from '../../../src/types'
+import { api, slugify, type Snapshot } from '../api'
+import { Button, Field, Input, Notice } from '../ui'
+
+function normalizeHex(input: string) {
+  const raw = input.trim()
+  const hex = raw.startsWith('#') ? raw : `#${raw}`
+  return /^#[0-9A-Fa-f]{6}$/.test(hex) ? hex.toLowerCase() : null
+}
+
+export function ColorPaletteEditor({
+  data,
+  product,
+  setProduct,
+  onPaletteChange,
+}: {
+  data: Snapshot
+  product: Product
+  setProduct: (p: Product) => void
+  onPaletteChange: (snapshot: Snapshot, syncProductColors: boolean) => void
+}) {
+  const [newName, setNewName] = useState('')
+  const [newHex, setNewHex] = useState('#171717')
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editHex, setEditHex] = useState('#171717')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const refresh = async (syncProductColors = true) => {
+    const snapshot = await api.snapshot()
+    onPaletteChange(snapshot, syncProductColors)
+  }
+
+  const addColor = async () => {
+    const hex = normalizeHex(newHex)
+    if (!newName.trim() || !hex) {
+      setError('Enter a color name and a valid hex code (#RRGGBB).')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await api.createColor(newName.trim(), hex)
+      setNewName('')
+      setNewHex('#171717')
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add color')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const saveEdit = async (id: string) => {
+    const hex = normalizeHex(editHex)
+    if (!editName.trim() || !hex) {
+      setError('Enter a color name and a valid hex code (#RRGGBB).')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await api.updateColor(id, editName.trim(), hex)
+      setEditId(null)
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update color')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const removeColor = async (id: string) => {
+    if (!confirm('Delete this color from the catalog? It must not be used on any product.')) return
+    setBusy(true)
+    setError('')
+    try {
+      await api.deleteColor(id)
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete color')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const toggleProductColor = (color: ColorOption, checked: boolean) => {
+    if (checked) {
+      if (product.colors.some((c) => c.id === color.id)) return
+      setProduct({ ...product, colors: [...product.colors, { ...color }] })
+    } else {
+      setProduct({ ...product, colors: product.colors.filter((c) => c.id !== color.id) })
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {error && <Notice>{error}</Notice>}
+      <div className="space-y-2">
+        {data.colors.map((color) => (
+          <div key={color.id} className="rounded border border-ink/10 p-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={product.colors.some((c) => c.id === color.id)}
+                onChange={(e) => toggleProductColor(color, e.target.checked)}
+              />
+              <span className="size-5 shrink-0 rounded-full border border-black/10" style={{ background: color.hex }} />
+              <span className="font-medium">{color.name}</span>
+              <span className="text-xs text-ink/45">{color.hex}</span>
+            </label>
+            {editId === color.id ? (
+              <div className="mt-3 grid gap-2 border-t border-ink/10 pt-3">
+                <Field label="Name"><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></Field>
+                <div className="flex flex-wrap items-end gap-3">
+                  <Field label="Pick color">
+                    <input
+                      type="color"
+                      value={normalizeHex(editHex) ?? '#000000'}
+                      onChange={(e) => setEditHex(e.target.value)}
+                      className="h-11 w-16 cursor-pointer border border-ink/20 bg-white p-1"
+                    />
+                  </Field>
+                  <Field label="Hex"><Input value={editHex} onChange={(e) => setEditHex(e.target.value)} className="max-w-[8rem]" /></Field>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" disabled={busy} onClick={() => void saveEdit(color.id)}>Save color</Button>
+                  <Button type="button" variant="ghost" onClick={() => setEditId(null)}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditId(color.id)
+                    setEditName(color.name)
+                    setEditHex(color.hex)
+                    setError('')
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button type="button" variant="ghost" disabled={busy} onClick={() => void removeColor(color.id)}>
+                  Delete
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-ink/15 pt-4">
+        <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">ADD NEW COLOR</p>
+        <div className="mt-3 grid gap-3">
+          <Field label="Color name"><Input value={newName} placeholder="e.g. Forest Green" onChange={(e) => setNewName(e.target.value)} /></Field>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Pick color">
+              <input
+                type="color"
+                value={normalizeHex(newHex) ?? '#171717'}
+                onChange={(e) => setNewHex(e.target.value)}
+                className="h-11 w-16 cursor-pointer border border-ink/20 bg-white p-1"
+              />
+            </Field>
+            <Field label="Hex code">
+              <Input value={newHex} onChange={(e) => setNewHex(e.target.value)} placeholder="#596044" className="max-w-[8rem]" />
+            </Field>
+          </div>
+          <p className="text-[10px] text-ink/45">Id preview: {newName.trim() ? slugify(newName) : '—'}</p>
+          <Button type="button" disabled={busy || !newName.trim()} onClick={() => void addColor()}>Add to catalog</Button>
+        </div>
+      </div>
+    </div>
+  )
+}

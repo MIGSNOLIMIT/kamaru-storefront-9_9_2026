@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Category } from '../../../src/types'
 import { api, slugify, type Snapshot } from '../api'
+import { ImageField } from '../components/ImageField'
 import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
 
 export function CategoryList() {
@@ -117,8 +118,7 @@ export function CategoryEditor() {
           <Field label="Sort order"><Input type="number" value={category.sortOrder} onChange={(e) => set('sortOrder', Number(e.target.value))} /></Field>
         </div>
         <Field label="Description"><Textarea rows={4} value={category.description} onChange={(e) => set('description', e.target.value)} /></Field>
-        <Field label="Image alt"><Input value={category.image.alt} onChange={(e) => set('image', { ...category.image, alt: e.target.value })} /></Field>
-        <Field label="Image URL (optional)"><Input value={category.image.src ?? ''} onChange={(e) => set('image', { ...category.image, src: e.target.value || undefined })} /></Field>
+        <ImageField image={category.image} onChange={(image) => set('image', image)} label="Category image" />
       </Card>
     </div>
   )

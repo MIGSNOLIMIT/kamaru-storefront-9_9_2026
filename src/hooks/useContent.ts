@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { contentSource } from '../content'
-import type { Article, Category, HomeSection, Product, ProductQuery, SiteSettings } from '../types'
+import type { Article, Category, ColorOption, HomeSection, Product, ProductQuery, SiteSettings } from '../types'
 
 function useAsync<T>(loader: () => Promise<T>, deps: unknown[], initial: T) {
   const [data, setData] = useState(initial)
@@ -28,6 +28,10 @@ export function useProduct(slug?: string) {
 
 export function useCategories() {
   return useAsync(() => contentSource.getCategoryTree(), [], [] as Category[])
+}
+
+export function useColors() {
+  return useAsync(() => contentSource.listColors(), [], [] as ColorOption[])
 }
 
 export function useArticles() {

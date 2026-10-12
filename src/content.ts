@@ -1,4 +1,4 @@
-import { articles, categories, homeSections, products, siteSettings } from './data/catalog'
+import { articles, categories, colors, homeSections, products, siteSettings } from './data/catalog'
 import type { ContentSource, ProductQuery } from './types'
 
 const delay = async () => Promise.resolve()
@@ -41,6 +41,7 @@ export const localContentSource: ContentSource = {
     return p
   },
   async getCategoryTree() { await delay(); return categories.filter((c) => c.status === 'published') },
+  async listColors() { await delay(); return Object.values(colors) },
   async listArticles() { await delay(); return { items: articles, total: articles.length } },
   async getArticle(slug) { await delay(); return articles.find((a) => a.slug === slug) ?? null },
   async listSections(pageKey) { await delay(); return pageKey === 'home' ? homeSections : [] },
@@ -73,6 +74,7 @@ export const httpContentSource: ContentSource = {
   listProducts: (query = {}) => cmsGet(`/api/public/products${productQuery(query)}`),
   getProduct: (slug) => cmsGet(`/api/public/products/${encodeURIComponent(slug)}`),
   getCategoryTree: () => cmsGet('/api/public/categories'),
+  listColors: () => cmsGet('/api/public/colors'),
   listArticles: () => cmsGet('/api/public/articles'),
   getArticle: (slug) => cmsGet(`/api/public/articles/${encodeURIComponent(slug)}`),
   listSections: (pageKey) => cmsGet(`/api/public/sections/${encodeURIComponent(pageKey)}`),

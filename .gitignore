@@ -11,6 +11,8 @@ node_modules
 dist
 .env
 cms/data/content.json
+cms/public/uploads/*
+!cms/public/uploads/.gitkeep
 dist-ssr
 *.local
 

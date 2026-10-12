@@ -42,6 +42,24 @@ export const api = {
   deleteArticle: (id: string) => request<{ ok: boolean }>(`/api/admin/articles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   saveSections: (sections: HomeSection[]) => request<HomeSection[]>('/api/admin/sections', { method: 'PUT', body: JSON.stringify(sections) }),
   saveSettings: (settings: SiteSettings) => request<SiteSettings>('/api/admin/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+  listColors: () => request<ColorOption[]>('/api/admin/colors'),
+  createColor: (name: string, hex: string) =>
+    request<ColorOption>('/api/admin/colors', { method: 'POST', body: JSON.stringify({ name, hex }) }),
+  updateColor: (id: string, name: string, hex: string) =>
+    request<ColorOption>(`/api/admin/colors/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ name, hex }) }),
+  deleteColor: (id: string) => request<{ ok: boolean }>(`/api/admin/colors/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  uploadImage: (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        void request<{ url: string }>('/api/admin/upload-image', {
+          method: 'POST',
+          body: JSON.stringify({ fileName: file.name, dataUrl: reader.result as string }),
+        }).then((r) => resolve(r.url)).catch(reject)
+      }
+      reader.onerror = () => reject(new Error('Could not read the file.'))
+      reader.readAsDataURL(file)
+    }),
 }
 
 export const storefrontUrl = '/'

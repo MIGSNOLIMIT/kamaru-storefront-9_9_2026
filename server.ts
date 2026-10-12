@@ -57,6 +57,18 @@ async function main() {
   const server = createServer(async (req, res) => {
     try {
       const url = req.url ?? '/'
+      if (url.startsWith('/cms/uploads/')) {
+        const name = path.basename(decodeURIComponent(url.split('?')[0]))
+        const file = path.join(root, 'cms', 'public', 'uploads', name)
+        const uploadsRoot = path.join(root, 'cms', 'public', 'uploads')
+        if (file.startsWith(uploadsRoot) && existsSync(file) && statSync(file).isFile()) {
+          sendFile(res, file)
+          return
+        }
+        res.statusCode = 404
+        res.end('Not found')
+        return
+      }
       if (url.startsWith('/api/')) {
         const handled = await handleCmsApi(req, res)
         if (!handled) {

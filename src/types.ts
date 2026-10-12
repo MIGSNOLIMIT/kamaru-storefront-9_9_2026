@@ -181,6 +181,7 @@ export interface ContentSource {
   listProducts(query?: ProductQuery): Promise<Paginated<Product>>
   getProduct(slug: string): Promise<Product | null>
   getCategoryTree(): Promise<Category[]>
+  listColors(): Promise<ColorOption[]>
   listArticles(): Promise<Paginated<Article>>
   getArticle(slug: string): Promise<Article | null>
   listSections(pageKey: string): Promise<HomeSection[]>

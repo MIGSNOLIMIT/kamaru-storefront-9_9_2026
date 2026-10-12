@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Article } from '../../../src/types'
 import { api, slugify, type Snapshot } from '../api'
+import { ImageField } from '../components/ImageField'
 import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
 
 export function ArticleList() {
@@ -107,8 +108,7 @@ export function ArticleEditor() {
         </div>
         <Field label="Excerpt"><Textarea rows={3} value={article.excerpt} onChange={(e) => set('excerpt', e.target.value)} /></Field>
         <Field label="Body (blank line starts a new paragraph)"><Textarea rows={10} value={article.body.join('\n\n')} onChange={(e) => set('body', e.target.value.split(/\n\s*\n/))} /></Field>
-        <Field label="Image alt"><Input value={article.image.alt} onChange={(e) => set('image', { ...article.image, alt: e.target.value })} /></Field>
-        <Field label="Image URL (optional)"><Input value={article.image.src ?? ''} onChange={(e) => set('image', { ...article.image, src: e.target.value || undefined })} /></Field>
+        <ImageField image={article.image} onChange={(image) => set('image', image)} label="Article image" />
       </Card>
     </div>
   )

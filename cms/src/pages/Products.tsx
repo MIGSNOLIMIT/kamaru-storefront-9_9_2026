@@ -8,6 +8,8 @@ const MATERIALS: { id: ProductMaterial; label: string }[] = [
   { id: 'kipling', label: 'Kipling' },
 ]
 import { api, formatPrice, slugify, type Snapshot } from '../api'
+import { ColorPaletteEditor } from '../components/ColorPaletteEditor'
+import { ImageField } from '../components/ImageField'
 import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
 
 export function ProductList() {
@@ -184,25 +186,39 @@ export function ProductEditor() {
           </Card>
           <Card>
             <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">COLORS</p>
-            <div className="mt-3 space-y-2">
-              {data.colors.map((color) => (
-                <label key={color.id} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={product.colors.some((c) => c.id === color.id)} onChange={(e) => set('colors', e.target.checked ? [...product.colors, color] : product.colors.filter((c) => c.id !== color.id))} />
-                  <span className="size-4 rounded-full border border-black/10" style={{ background: color.hex }} />
-                  {color.name}
-                </label>
-              ))}
+            <div className="mt-3">
+              <ColorPaletteEditor
+                data={data}
+                product={product}
+                setProduct={setProduct}
+                onPaletteChange={(snapshot, syncProductColors) => {
+                  setData(snapshot)
+                  if (syncProductColors) {
+                    setProduct((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            colors: prev.colors
+                              .map((c) => snapshot.colors.find((x) => x.id === c.id))
+                              .filter((c): c is NonNullable<typeof c> => Boolean(c)),
+                          }
+                        : prev,
+                    )
+                  }
+                }}
+              />
             </div>
           </Card>
         </div>
       </div>
-      <Card className="mt-6 grid gap-4 md:grid-cols-2">
+      <Card className="mt-6 grid gap-6 md:grid-cols-2">
         {product.images.map((image, index) => (
-          <div key={image.id} className="grid gap-3">
-            <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">IMAGE {index + 1}</p>
-            <Field label="Alt text"><Input value={image.alt} onChange={(e) => set('images', product.images.map((img, i) => i === index ? { ...img, alt: e.target.value } : img))} /></Field>
-            <Field label="Image URL (optional)"><Input value={image.src ?? ''} onChange={(e) => set('images', product.images.map((img, i) => i === index ? { ...img, src: e.target.value || undefined } : img))} /></Field>
-          </div>
+          <ImageField
+            key={image.id}
+            label={`Image ${index + 1}`}
+            image={image}
+            onChange={(next) => set('images', product.images.map((img, i) => (i === index ? next : img)))}
+          />
         ))}
       </Card>
     </div>

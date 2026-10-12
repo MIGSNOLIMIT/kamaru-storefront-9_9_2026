@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
@@ -58,6 +59,31 @@ export interface ContentStore {
 
 const dataDir = path.join(import.meta.dirname, 'data')
 const dataFile = path.join(dataDir, 'content.json')
+const uploadsDir = path.join(import.meta.dirname, 'public', 'uploads')
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+function slugifyColorId(name: string) {
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'color'
+}
+
+function normalizeHex(input: string): string | null {
+  const raw = input.trim()
+  const hex = raw.startsWith('#') ? raw : `#${raw}`
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return null
+  return hex.toLowerCase()
+}
+
+function propagateColor(data: ContentStore, color: ColorOption) {
+  data.colors = data.colors.map((c) => (c.id === color.id ? color : c))
+  data.products = data.products.map((p) => ({
+    ...p,
+    colors: p.colors.map((c) => (c.id === color.id ? { ...color } : c)),
+  }))
+}
+
+function colorInUse(data: ContentStore, id: string) {
+  return data.products.some((p) => p.colors.some((c) => c.id === id))
+}
 
 function seed(): ContentStore {
   return {
@@ -214,8 +240,56 @@ export async function handleCmsApi(req: IncomingMessage, res: ServerResponse) {
           if (method === 'GET' && pathname === '/api/public/settings') {
             return send(res, 200, data.siteSettings)
           }
+          if (method === 'GET' && pathname === '/api/public/colors') {
+            return send(res, 200, data.colors)
+          }
 
           if (method === 'GET' && pathname === '/api/admin/snapshot') return send(res, 200, data)
+          if (method === 'GET' && pathname === '/api/admin/colors') return send(res, 200, data.colors)
+          if (method === 'POST' && pathname === '/api/admin/colors') {
+            const body = await parseBody<{ name: string; hex: string; id?: string }>(req)
+            const hex = normalizeHex(body.hex)
+            if (!body.name?.trim() || !hex) return send(res, 400, { error: 'Valid color name and hex (#RRGGBB) are required.' })
+            const id = body.id?.trim() || slugifyColorId(body.name)
+            if (data.colors.some((c) => c.id === id)) return send(res, 409, { error: 'A color with this id already exists.' })
+            const color: ColorOption = { id, name: body.name.trim(), hex }
+            data.colors.push(color)
+            save(data)
+            return send(res, 201, color)
+          }
+          const adminColor = match(pathname, '/api/admin/colors/:id')
+          if (adminColor && method === 'PUT') {
+            const body = await parseBody<{ name: string; hex: string }>(req)
+            const hex = normalizeHex(body.hex)
+            const index = data.colors.findIndex((c) => c.id === adminColor.id)
+            if (index < 0) return send(res, 404, { error: 'Color not found.' })
+            if (!body.name?.trim() || !hex) return send(res, 400, { error: 'Valid color name and hex (#RRGGBB) are required.' })
+            const updated: ColorOption = { id: adminColor.id, name: body.name.trim(), hex }
+            propagateColor(data, updated)
+            save(data)
+            return send(res, 200, updated)
+          }
+          if (adminColor && method === 'DELETE') {
+            if (colorInUse(data, adminColor.id)) {
+              return send(res, 400, { error: 'Remove this color from all products before deleting it.' })
+            }
+            data.colors = data.colors.filter((c) => c.id !== adminColor.id)
+            save(data)
+            return send(res, 200, { ok: true })
+          }
+          if (method === 'POST' && pathname === '/api/admin/upload-image') {
+            const body = await parseBody<{ fileName: string; dataUrl: string }>(req)
+            const matchData = body.dataUrl?.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/i)
+            if (!matchData) return send(res, 400, { error: 'Upload a JPG, PNG, or WebP image.' })
+            const buffer = Buffer.from(matchData[2], 'base64')
+            if (buffer.length > MAX_UPLOAD_BYTES) return send(res, 400, { error: 'Image must be 5 MB or smaller.' })
+            const ext = matchData[1] === 'image/png' ? '.png' : matchData[1] === 'image/webp' ? '.webp' : '.jpg'
+            const safeBase = (body.fileName ?? 'image').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/\.[^.]+$/, '') || 'image'
+            mkdirSync(uploadsDir, { recursive: true })
+            const fileName = `${safeBase}-${randomUUID().slice(0, 8)}${ext}`
+            writeFileSync(path.join(uploadsDir, fileName), buffer)
+            return send(res, 200, { url: `/cms/uploads/${fileName}` })
+          }
           if (method === 'POST' && pathname === '/api/admin/reset') {
             const next = seed()
             save(next)
