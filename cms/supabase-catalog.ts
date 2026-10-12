@@ -133,12 +133,35 @@ function articleToRow(a: Article) {
   }
 }
 
+async function syncRowsById(
+  sb: SupabaseClient,
+  table: 'products' | 'categories' | 'articles' | 'colors',
+  rows: Record<string, unknown>[],
+  idField = 'id',
+) {
+  const ids = rows.map((r) => String(r[idField]))
+  if (rows.length) {
+    const { error } = await sb.from(table).upsert(rows)
+    if (error) throw new Error(`${table} upsert: ${error.message}`)
+  }
+  const { data: existing, error: listErr } = await sb.from(table).select(idField)
+  if (listErr) throw new Error(`${table} list: ${listErr.message}`)
+  const removeIds = (existing ?? [])
+    .map((r) => String((r as { id?: string })[idField as 'id'] ?? ''))
+    .filter((rowId) => rowId && !ids.includes(rowId))
+  if (removeIds.length) {
+    const { error: delErr } = await sb.from(table).delete().in(idField, removeIds)
+    if (delErr) throw new Error(`${table} delete: ${delErr.message}`)
+  }
+}
+
 export async function loadSupabaseSnapshot(): Promise<ContentStore | null> {
   const sb = getSupabaseAdmin()
   if (!sb) return null
 
-  const { count } = await sb.from('products').select('*', { count: 'exact', head: true })
-  if (!count) {
+  const { count, error: countError } = await sb.from('products').select('*', { count: 'exact', head: true })
+  if (countError) throw new Error(countError.message)
+  if (count === 0) {
     const json = loadJson()
     await seedSupabaseFromStore(json)
     return json
@@ -155,6 +178,10 @@ export async function loadSupabaseSnapshot(): Promise<ContentStore | null> {
   ])
 
   if (prods.error) throw new Error(prods.error.message)
+  if (cats.error) throw new Error(cats.error.message)
+  if (arts.error) throw new Error(arts.error.message)
+  if (secs.error) throw new Error(secs.error.message)
+  if (cols.error) throw new Error(cols.error.message)
 
   return {
     products: (prods.data ?? []).map((r) => rowToProduct(r)),
@@ -169,30 +196,14 @@ export async function loadSupabaseSnapshot(): Promise<ContentStore | null> {
 
 export async function saveSupabaseSnapshot(data: ContentStore): Promise<void> {
   const sb = getSupabaseAdmin()
-  if (!sb) {
-    saveJson(data)
-    return
-  }
+  if (!sb) throw new Error('Supabase is not configured.')
 
-  await sb.from('products').delete().neq('id', '')
-  if (data.products.length) {
-    const { error } = await sb.from('products').upsert(data.products.map(productToRow))
-    if (error) throw new Error(error.message)
-  }
+  await syncRowsById(sb, 'products', data.products.map(productToRow))
+  await syncRowsById(sb, 'categories', data.categories.map(categoryToRow))
+  await syncRowsById(sb, 'articles', data.articles.map(articleToRow))
+  await syncRowsById(sb, 'colors', data.colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex })))
 
-  await sb.from('categories').delete().neq('id', '')
-  if (data.categories.length) {
-    const { error } = await sb.from('categories').upsert(data.categories.map(categoryToRow))
-    if (error) throw new Error(error.message)
-  }
-
-  await sb.from('articles').delete().neq('id', '')
-  if (data.articles.length) {
-    const { error } = await sb.from('articles').upsert(data.articles.map(articleToRow))
-    if (error) throw new Error(error.message)
-  }
-
-  await sb.from('home_sections').delete().eq('page_key', 'home')
+  const homeIds = data.homeSections.map((s) => s.id)
   if (data.homeSections.length) {
     const rows = data.homeSections.map((section, sortOrder) => ({
       id: section.id,
@@ -200,21 +211,28 @@ export async function saveSupabaseSnapshot(data: ContentStore): Promise<void> {
       section,
       sort_order: sortOrder,
     }))
-    const { error } = await sb.from('home_sections').insert(rows)
-    if (error) throw new Error(error.message)
+    const { error } = await sb.from('home_sections').upsert(rows)
+    if (error) throw new Error(`home_sections upsert: ${error.message}`)
+  }
+  const { data: homeExisting, error: homeListErr } = await sb
+    .from('home_sections')
+    .select('id')
+    .eq('page_key', 'home')
+  if (homeListErr) throw new Error(`home_sections list: ${homeListErr.message}`)
+  const homeRemove = (homeExisting ?? [])
+    .map((r) => String(r.id))
+    .filter((id) => !homeIds.includes(id))
+  if (homeRemove.length) {
+    const { error: homeDelErr } = await sb.from('home_sections').delete().in('id', homeRemove)
+    if (homeDelErr) throw new Error(`home_sections delete: ${homeDelErr.message}`)
   }
 
   const { error: settingsErr } = await sb.from('site_settings').upsert({ id: 1, settings: data.siteSettings })
   if (settingsErr) throw new Error(settingsErr.message)
 
-  await sb.from('colors').delete().neq('id', '')
-  if (data.colors.length) {
-    const { error } = await sb.from('colors').insert(data.colors)
-    if (error) throw new Error(error.message)
-  }
-
   if (data.aboutPage) {
-    await sb.from('pages').upsert({ id: 'about', content: data.aboutPage })
+    const { error: pageErr } = await sb.from('pages').upsert({ id: 'about', content: data.aboutPage })
+    if (pageErr) throw new Error(pageErr.message)
   }
 }
 
@@ -233,15 +251,11 @@ export async function loadCatalog(): Promise<ContentStore> {
 }
 
 export async function saveCatalog(data: ContentStore): Promise<void> {
-  saveJson(data)
   const sb = getSupabaseAdmin()
   if (sb) {
-    try {
-      await saveSupabaseSnapshot(data)
-    } catch (e) {
-      console.warn('[catalog] Supabase save failed:', e)
-    }
+    await saveSupabaseSnapshot(data)
   }
+  saveJson(data)
 }
 
 export async function uploadBrandAsset(

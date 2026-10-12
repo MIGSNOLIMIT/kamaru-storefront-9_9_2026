@@ -126,14 +126,14 @@ export function ProductEditor() {
   const [savedMsg, setSavedMsg] = useState('')
 
   useEffect(() => {
+    setData(null)
+    setProduct(null)
+    setError('')
     void api.snapshot().then((snapshot) => {
       setData(snapshot)
       setProduct(isNew ? blank(snapshot.products.length) : snapshot.products.find((p) => p.id === id) ?? null)
     }).catch((e: Error) => setError(e.message))
   }, [id, isNew])
-
-  if (error) return <Notice>{error}</Notice>
-  if (!data || !product) return <p className="text-sm text-ink/50">{isNew ? 'Loading…' : 'Product not found.'}</p>
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -142,6 +142,11 @@ export function ProductEditor() {
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [dirty])
+
+  if (error) return <Notice>{error}</Notice>
+  if (!data) return <p className="text-sm text-ink/50">Loading…</p>
+  if (!isNew && !product) return <p className="text-sm text-ink/50">Product not found.</p>
+  if (!product) return <p className="text-sm text-ink/50">Loading…</p>
 
   const set = <K extends keyof Product>(key: K, value: Product[K]) => {
     setDirty(true)

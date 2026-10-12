@@ -53,6 +53,9 @@ export function CategoryEditor() {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
+    setData(null)
+    setCategory(null)
+    setError('')
     void api.snapshot().then((snapshot) => {
       setData(snapshot)
       setCategory(isNew ? blank(snapshot.categories.length) : snapshot.categories.find((c) => c.id === id) ?? null)
@@ -60,7 +63,9 @@ export function CategoryEditor() {
   }, [id, isNew])
 
   if (error) return <Notice>{error}</Notice>
-  if (!data || !category) return <p className="text-sm text-ink/50">{isNew ? 'Loading…' : 'Category not found.'}</p>
+  if (!data) return <p className="text-sm text-ink/50">Loading…</p>
+  if (!isNew && !category) return <p className="text-sm text-ink/50">Category not found.</p>
+  if (!category) return <p className="text-sm text-ink/50">Loading…</p>
 
   const set = <K extends keyof Category>(key: K, value: Category[K]) => setCategory({ ...category, [key]: value })
   const save = async () => {
