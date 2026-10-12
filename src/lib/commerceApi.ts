@@ -205,8 +205,7 @@ export const commerceApi = {
       const path = `${userId}/${Date.now()}-${file.name}`
       const { error } = await supabase.storage.from('payment-proofs').upload(path, file)
       if (error) throw error
-      const { data } = supabase.storage.from('payment-proofs').getPublicUrl(path)
-      return data.publicUrl
+      return path
     }
     const base64 = await fileToDataUrl(file)
     return localRequest<string>('/api/public/upload-proof', {

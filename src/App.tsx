@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { Seo } from './components/Seo'
 import { GaInit } from './components/GaInit'
@@ -25,6 +25,11 @@ const NotFound = lazy(() => content.then(m => ({ default: m.NotFound })))
 const Privacy = lazy(() => legal.then(m => ({ default: m.Privacy })))
 const Terms = lazy(() => legal.then(m => ({ default: m.Terms })))
 
+function CategoryRedirect() {
+  const { slug } = useParams()
+  return <Navigate to={`/shop?category=${encodeURIComponent(slug ?? '')}`} replace />
+}
+
 function ScrollManager() {
   const { pathname } = useLocation()
   useEffect(() => window.scrollTo(0, 0), [pathname])
@@ -43,7 +48,7 @@ function AppRoutes() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="shop" element={<Shop />} />
-          <Route path="category/:slug" element={<Shop />} />
+          <Route path="category/:slug" element={<CategoryRedirect />} />
           <Route path="product/:slug" element={<ProductPage />} />
           <Route path="about" element={<About />} />
           <Route path="blog" element={<Blog />} />

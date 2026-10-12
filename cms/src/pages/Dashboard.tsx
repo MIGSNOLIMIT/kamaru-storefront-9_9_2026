@@ -10,26 +10,12 @@ export function Dashboard() {
   const [data, setData] = useState<Snapshot | null>(null)
   const [orderCount, setOrderCount] = useState(0)
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
   const load = () => api.snapshot().then(setData).catch((e: Error) => setError(e.message))
   useEffect(() => { void load() }, [])
   useEffect(() => {
     if (!token) return
     void adminApi.orders(token).then((orders) => setOrderCount(orders.length)).catch(() => setOrderCount(0))
   }, [token])
-
-  const reset = async () => {
-    if (!confirm('Reset CMS content back to the original storefront catalog?')) return
-    setBusy(true)
-    try {
-      setData(await api.reset())
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Reset failed')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   if (!data) return <p className="text-sm text-ink/50">{error || 'Loading current catalog…'}</p>
 
@@ -45,10 +31,7 @@ export function Dashboard() {
   return (
     <div>
       <PageHeader kicker="Current setup" title="Kamaru content studio">
-        <div className="flex gap-2">
-          <a href={storefrontUrl} target="_blank" rel="noreferrer"><Button type="button">View storefront</Button></a>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => void reset()}>Reset to seed</Button>
-        </div>
+        <a href={storefrontUrl} target="_blank" rel="noreferrer"><Button type="button">View storefront</Button></a>
       </PageHeader>
       {error && <div className="mb-6"><Notice>{error}</Notice></div>}
       <p className="mb-6 max-w-2xl text-sm leading-6 text-ink/60">

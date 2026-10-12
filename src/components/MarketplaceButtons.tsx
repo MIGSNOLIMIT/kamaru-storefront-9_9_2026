@@ -1,4 +1,5 @@
 import type { MarketplaceLinks } from '../types'
+import { trackEvent } from '../lib/analytics'
 import { useLanguage } from '../state/LanguageContext'
 
 const configs = [
@@ -20,6 +21,7 @@ export function MarketplaceButtons({ links }: { links: MarketplaceLinks }) {
           target="_blank"
           rel="noreferrer"
           className={`flex min-h-12 items-center justify-center px-4 text-center text-xs font-bold tracking-widest ${c.className}`}
+          onClick={() => trackEvent('marketplace_click', { platform: c.key })}
         >
           {tr(c.labelKey)}
         </a>

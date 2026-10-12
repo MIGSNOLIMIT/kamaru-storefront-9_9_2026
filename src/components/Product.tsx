@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Heart, ShoppingBag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Product } from '../types'
@@ -15,7 +15,7 @@ export function QuantityStepper({ value, onChange }: { value: number; onChange: 
   return <div className="inline-flex h-12 border border-ink/25"><button className="w-11" aria-label="Decrease quantity" onClick={() => onChange(Math.max(1, value - 1))}>−</button><span className="grid w-10 place-items-center" aria-live="polite">{value}</span><button className="w-11" aria-label="Increase quantity" onClick={() => onChange(value + 1)}>+</button></div>
 }
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product, renderName }: { product: Product; renderName?: (product: Product) => ReactNode }) {
   const { wishlist, toggleWishlist, addToCart } = useStore()
   const [quick, setQuick] = useState(false)
   const wished = wishlist.includes(product.id)
@@ -32,7 +32,7 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
         </div>
         <div className="p-5">
-          <div className="mb-2 flex items-start justify-between gap-3"><Link to={`/product/${product.slug}`} className="font-display text-lg font-bold hover:text-clay">{product.name}</Link><span className="shrink-0 font-semibold">{formatPrice(product.price)}</span></div>
+          <div className="mb-2 flex items-start justify-between gap-3"><Link to={`/product/${product.slug}`} className="font-display text-lg font-bold hover:text-clay">{renderName ? renderName(product) : product.name}</Link><span className="shrink-0 font-semibold">{formatPrice(product.price)}</span></div>
           <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-ink/60">{product.features.slice(0,2).join(' · ')}</p>
           <ColorSwatches product={product} />
         </div>
@@ -44,7 +44,21 @@ export function ProductCard({ product }: { product: Product }) {
   )
 }
 
-export function ProductGrid({ products, empty = 'No products match your filters.' }: { products: Product[]; empty?: string }) {
+export function ProductGrid({
+  products,
+  empty = 'No products match your filters.',
+  renderName,
+}: {
+  products: Product[]
+  empty?: string
+  renderName?: (product: Product) => ReactNode
+}) {
   if (!products.length) return <div className="col-span-full border border-dashed border-ink/30 p-12 text-center text-ink/60">{empty}</div>
-  return <>{products.map((product) => <ProductCard key={product.id} product={product} />)}</>
+  return (
+    <>
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} renderName={renderName} />
+      ))}
+    </>
+  )
 }

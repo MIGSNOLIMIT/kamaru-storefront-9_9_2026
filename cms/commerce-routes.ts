@@ -42,7 +42,7 @@ function toSession(user: StoredUser) {
   }
 }
 
-function requireStaff(req: IncomingMessage): StoredUser | null {
+export function requireStaff(req: IncomingMessage): StoredUser | null {
   const token = req.headers['x-kamaru-staff-token']
   if (!token || Array.isArray(token)) return null
   const commerce = loadCommerce()

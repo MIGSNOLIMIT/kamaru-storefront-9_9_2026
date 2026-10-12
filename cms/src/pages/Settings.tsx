@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { SiteSettings } from '../../../src/types'
 import { api } from '../api'
+import { ImageField } from '../components/ImageField'
 import { Button, Card, Field, Input, Notice, PageHeader, Textarea } from '../ui'
 
 export function Settings() {
@@ -49,7 +50,11 @@ export function Settings() {
           <Field label="Fax"><Input value={settings.fax} onChange={(e) => set('fax', e.target.value)} /></Field>
           <Field label="Bulk MOQ (optional)"><Input type="number" min={1} value={settings.bulkMoq ?? ''} onChange={(e) => set('bulkMoq', e.target.value ? Number(e.target.value) : undefined)} /></Field>
           <Field label="GA4 measurement ID"><Input value={settings.ga4MeasurementId ?? ''} onChange={(e) => set('ga4MeasurementId', e.target.value || undefined)} /></Field>
-          <Field label="QR payment image URL"><Input value={settings.qrImageUrl ?? ''} onChange={(e) => set('qrImageUrl', e.target.value || undefined)} /></Field>
+          <ImageField
+            label="QR payment image"
+            image={{ id: 'qr-payment', alt: 'QR payment', width: 400, height: 400, src: settings.qrImageUrl }}
+            onChange={(img) => set('qrImageUrl', img.src)}
+          />
         </div>
         <Field label="Phones (one per line)"><Textarea rows={3} value={settings.phones.join('\n')} onChange={(e) => set('phones', e.target.value.split('\n').map((line) => line.trim()).filter(Boolean))} /></Field>
         <Field label="Address"><Textarea rows={3} value={settings.address} onChange={(e) => set('address', e.target.value)} /></Field>

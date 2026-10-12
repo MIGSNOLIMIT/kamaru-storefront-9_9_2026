@@ -4,7 +4,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Breadcrumbs, Button, Media } from '../components/UI'
 import { ColorSwatches, formatPrice, ProductGrid, QuantityStepper } from '../components/Product'
 import { MarketplaceButtons } from '../components/MarketplaceButtons'
-import { useProduct, useProducts } from '../hooks/useContent'
+import { useProduct, useProducts, useSiteSettings } from '../hooks/useContent'
+import { trackEvent } from '../lib/analytics'
 import { useStore } from '../state/StoreContext'
 import { useAuth } from '../state/AuthContext'
 import { useLanguage } from '../state/LanguageContext'
@@ -16,7 +17,9 @@ export default function ProductPage() {
   const { tr } = useLanguage()
   const { isAuthenticated } = useAuth()
   const { data: product, loading } = useProduct(slug)
+  const { data: settings } = useSiteSettings()
   const { data: related } = useProducts({ category: product?.categoryIds[0], limit: 5 })
+  const moq = settings?.bulkMoq
   const { addToCart, wishlist, toggleWishlist } = useStore()
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedColor, setSelectedColor] = useState('')
@@ -41,7 +44,9 @@ export default function ProductPage() {
       navigate(`/account?next=${encodeURIComponent(accountNext)}`)
       return
     }
+    if (moq && quantity < moq) return
     addToCart(product, colorId, quantity)
+    trackEvent('begin_checkout')
     navigate('/checkout')
   }
 
@@ -83,6 +88,7 @@ export default function ProductPage() {
           <p className="mt-4 text-2xl font-semibold">{formatPrice(product.price)}</p>
           <p className="mt-6 leading-7 text-ink/65">{product.shortDescription}</p>
           <p className="mt-4 text-xs leading-6 text-ink/50">{tr('retailNote')}</p>
+          {moq ? <p className="mt-2 text-xs font-bold text-ink/55">Bulk minimum order: {moq} units per line.</p> : null}
           <div className="my-7 space-y-4">
             <MarketplaceButtons links={product.marketplace} />
           </div>
@@ -93,10 +99,17 @@ export default function ProductPage() {
           {isAuthenticated ? (
             <div className="flex flex-col gap-3 sm:flex-row">
               <QuantityStepper value={quantity} onChange={setQuantity} />
-              <Button className="min-h-12 flex-1" disabled={!product.inStock} onClick={() => addToCart(product, colorId, quantity)}>
+              <Button
+                className="min-h-12 flex-1"
+                disabled={!product.inStock || (moq != null && quantity < moq)}
+                onClick={() => {
+                  addToCart(product, colorId, quantity)
+                  trackEvent('add_to_cart', { items: [{ item_id: product.id, quantity }] })
+                }}
+              >
                 {product.inStock ? tr('addToCart') : 'Sold out'}
               </Button>
-              <Button className="min-h-12 flex-1" variant="outline" disabled={!product.inStock} onClick={buyNow}>
+              <Button className="min-h-12 flex-1" variant="outline" disabled={!product.inStock || (moq != null && quantity < moq)} onClick={buyNow}>
                 {tr('buyNow')}
               </Button>
             </div>
@@ -119,9 +132,6 @@ export default function ProductPage() {
             <dt className="text-ink/45">Dimensions</dt><dd>{product.specs.dimensions ?? 'Specifications pending'}</dd>
             <dt className="text-ink/45">Load capacity</dt><dd>{product.specs.loadCapacity ?? 'Specifications pending'}</dd>
           </dl>
-          {product.dataQuality === 'placeholder' && (
-            <p className="mt-4 border-l-2 border-khaki pl-3 text-xs text-ink/50">Unverified technical details are intentionally left pending for the content team.</p>
-          )}
           <div className="mt-7 grid grid-cols-2 gap-3">
             <div className="flex gap-3 bg-white p-4 text-xs"><ShieldCheck className="text-clay" /><span><strong className="block">BUILT TO LAST</strong>Durable materials</span></div>
             <div className="flex gap-3 bg-white p-4 text-xs"><Truck className="text-clay" /><span><strong className="block">LOCAL BRAND</strong>Proudly Filipino</span></div>
@@ -130,7 +140,7 @@ export default function ProductPage() {
       </div>
       <div className="section-space">
         <div className="flex gap-7 overflow-auto border-b border-ink/20">
-          {['description', 'additional information', 'reviews'].map((t) => (
+          {['description', 'additional information'].map((t) => (
             <button key={t} type="button" onClick={() => setTab(t)} className={`shrink-0 border-b-2 py-4 text-xs font-bold uppercase tracking-widest ${tab === t ? 'border-clay text-clay' : 'border-transparent'}`}>{t}</button>
           ))}
         </div>
@@ -148,7 +158,6 @@ export default function ProductPage() {
               <dt>Colors</dt><dd>{product.colors.map((c) => c.name).join(', ')}</dd>
             </dl>
           )}
-          {tab === 'reviews' && <p>No reviews yet. Be the first to share your experience.</p>}
         </div>
       </div>
       <section>

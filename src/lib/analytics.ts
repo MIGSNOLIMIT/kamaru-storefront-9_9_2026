@@ -22,3 +22,8 @@ export function initGa4(measurementId?: string) {
   window.gtag('js', new Date())
   window.gtag('config', id, { anonymize_ip: false })
 }
+
+export function trackEvent(name: string, params?: Record<string, unknown>) {
+  if (typeof window === 'undefined' || !window.gtag) return
+  window.gtag('event', name, params ?? {})
+}

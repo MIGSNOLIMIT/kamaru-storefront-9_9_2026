@@ -14,11 +14,15 @@ export function ColorPaletteEditor({
   product,
   setProduct,
   onPaletteChange,
+  paletteOnly = false,
+  assignOnly = false,
 }: {
   data: Snapshot
   product: Product
   setProduct: (p: Product) => void
-  onPaletteChange: (snapshot: Snapshot, syncProductColors: boolean) => void
+  onPaletteChange: (snapshot: Snapshot, syncProductColors?: boolean) => void
+  paletteOnly?: boolean
+  assignOnly?: boolean
 }) {
   const [newName, setNewName] = useState('')
   const [newHex, setNewHex] = useState('#171717')
@@ -30,7 +34,7 @@ export function ColorPaletteEditor({
 
   const refresh = async (syncProductColors = true) => {
     const snapshot = await api.snapshot()
-    onPaletteChange(snapshot, syncProductColors)
+    onPaletteChange(snapshot, paletteOnly ? false : syncProductColors)
   }
 
   const addColor = async () => {
@@ -101,17 +105,26 @@ export function ColorPaletteEditor({
       <div className="space-y-2">
         {data.colors.map((color) => (
           <div key={color.id} className="rounded border border-ink/10 p-3">
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={product.colors.some((c) => c.id === color.id)}
-                onChange={(e) => toggleProductColor(color, e.target.checked)}
-              />
-              <span className="size-5 shrink-0 rounded-full border border-black/10" style={{ background: color.hex }} />
-              <span className="font-medium">{color.name}</span>
-              <span className="text-xs text-ink/45">{color.hex}</span>
-            </label>
-            {editId === color.id ? (
+            {!paletteOnly && (
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={product.colors.some((c) => c.id === color.id)}
+                  onChange={(e) => toggleProductColor(color, e.target.checked)}
+                />
+                <span className="size-5 shrink-0 rounded-full border border-black/10" style={{ background: color.hex }} />
+                <span className="font-medium">{color.name}</span>
+                <span className="text-xs text-ink/45">{color.hex}</span>
+              </label>
+            )}
+            {paletteOnly && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="size-5 shrink-0 rounded-full border border-black/10" style={{ background: color.hex }} />
+                <span className="font-medium">{color.name}</span>
+                <span className="text-xs text-ink/45">{color.hex}</span>
+              </div>
+            )}
+            {!assignOnly && editId === color.id ? (
               <div className="mt-3 grid gap-2 border-t border-ink/10 pt-3">
                 <Field label="Name"><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></Field>
                 <div className="flex flex-wrap items-end gap-3">
@@ -130,7 +143,7 @@ export function ColorPaletteEditor({
                   <Button type="button" variant="ghost" onClick={() => setEditId(null)}>Cancel</Button>
                 </div>
               </div>
-            ) : (
+            ) : !assignOnly ? (
               <div className="mt-2 flex gap-2">
                 <Button
                   type="button"
@@ -148,10 +161,11 @@ export function ColorPaletteEditor({
                   Delete
                 </Button>
               </div>
-            )}
+            ) : null}
           </div>
         ))}
       </div>
+      {!assignOnly && (
       <div className="border-t border-ink/15 pt-4">
         <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">ADD NEW COLOR</p>
         <div className="mt-3 grid gap-3">
@@ -173,6 +187,12 @@ export function ColorPaletteEditor({
           <Button type="button" disabled={busy || !newName.trim()} onClick={() => void addColor()}>Add to catalog</Button>
         </div>
       </div>
+      )}
+      {assignOnly && (
+        <p className="text-xs text-ink/50">
+          Manage palette colors on the <a className="underline" href="/colors">Colors</a> screen.
+        </p>
+      )}
     </div>
   )
 }

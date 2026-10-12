@@ -1,5 +1,6 @@
 import { ArrowRight, Droplets, Hammer, HeartHandshake, MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { useArticles, useCategories, useHomeSections, useProducts } from '../hooks/useContent'
 import type { HomeSection } from '../types'
 import { ProductGrid } from '../components/Product'
@@ -19,7 +20,7 @@ function Benefits() {
 function FeaturedCategories() {
   const { data } = useCategories()
   const wanted = ['backpacks','adventure-bags','travel-bags','shoulder-bags']
-  return <section className="section-space"><div className="container-site"><SectionHeading title="FIND YOUR PERFECT KAMARU" text="From everyday backpacks to travel and outdoor gear."/><div className="grid gap-4 md:grid-cols-2">{wanted.map((slug,i) => { const c=data.find((x)=>x.slug===slug); if(!c)return null; return <Link to={`/category/${c.slug}`} key={slug} className={`group relative min-h-[360px] overflow-hidden ${i===0||i===3?'md:min-h-[480px]':''}`}><Media image={c.image} className="transition duration-700 group-hover:scale-105"/><div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent"/><div className="absolute bottom-0 p-7 text-white"><h3 className="text-2xl font-extrabold">{c.name.toUpperCase()}</h3><p className="my-2 text-sm text-white/65">{c.description}</p><span className="text-xs font-bold tracking-widest">SHOP NOW <ArrowRight className="inline" size={14}/></span></div></Link>})}</div></div></section>
+  return <section className="section-space"><div className="container-site"><SectionHeading title="FIND YOUR PERFECT KAMARU" text="From everyday backpacks to travel and outdoor gear."/><div className="grid gap-4 md:grid-cols-2">{wanted.map((slug,i) => { const c=data.find((x)=>x.slug===slug); if(!c)return null; return <Link to={`/shop?category=${encodeURIComponent(c.slug)}`} key={slug} className={`group relative min-h-[360px] overflow-hidden ${i===0||i===3?'md:min-h-[480px]':''}`}><Media image={c.image} className="transition duration-700 group-hover:scale-105"/><div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent"/><div className="absolute bottom-0 p-7 text-white"><h3 className="text-2xl font-extrabold">{c.name.toUpperCase()}</h3><p className="my-2 text-sm text-white/65">{c.description}</p><span className="text-xs font-bold tracking-widest">SHOP NOW <ArrowRight className="inline" size={14}/></span></div></Link>})}</div></div></section>
 }
 
 function NewArrivals() {
@@ -28,7 +29,7 @@ function NewArrivals() {
 }
 
 function Editorial() {
-  return <section className="section-space"><div className="container-site grid items-center gap-10 lg:grid-cols-[1.2fr_.8fr]"><div className="h-[520px]"><Media image={placeholder('outdoor-editorial','Kamaru bag used outdoors')}/></div><div className="lg:-ml-20 lg:bg-bone lg:p-14"><p className="text-xs font-bold tracking-[.2em] text-clay">KAMARU OUTDOOR</p><h2 className="mt-4 text-4xl font-extrabold leading-tight md:text-6xl">LOAD UP YOUR KAMARU BAG</h2><p className="my-6 max-w-lg leading-7 text-ink/65">Designed for everyday movement, travel and adventure. Carry your essentials with confidence, comfort and style.</p><Link to="/category/adventure-bags"><Button>Explore adventure bags</Button></Link></div></div></section>
+  return <section className="section-space"><div className="container-site grid items-center gap-10 lg:grid-cols-[1.2fr_.8fr]"><div className="h-[520px]"><Media image={placeholder('outdoor-editorial','Kamaru bag used outdoors')}/></div><div className="lg:-ml-20 lg:bg-bone lg:p-14"><p className="text-xs font-bold tracking-[.2em] text-clay">KAMARU OUTDOOR</p><h2 className="mt-4 text-4xl font-extrabold leading-tight md:text-6xl">LOAD UP YOUR KAMARU BAG</h2><p className="my-6 max-w-lg leading-7 text-ink/65">Designed for everyday movement, travel and adventure. Carry your essentials with confidence, comfort and style.</p><Link to="/shop?category=travelling-bag"><Button>Explore adventure bags</Button></Link></div></div></section>
 }
 
 function WaterResistant() {
@@ -45,7 +46,7 @@ function BestSellers() {
 }
 
 function Lifestyle() {
-  return <section className="relative my-0 flex min-h-[520px] items-center bg-ink text-white"><div className="absolute inset-0 opacity-50"><Media image={placeholder('travel-banner','Kamaru travel bags on a journey')}/></div><div className="absolute inset-0 bg-black/45"/><div className="container-site relative z-10 text-center"><h2 className="text-4xl font-extrabold md:text-7xl">TRAVEL WITH STYLE.<br/>TRAVEL WITH COMFORT.</h2><p className="mx-auto mt-5 max-w-lg text-white/70">Wherever you're headed, Kamaru is ready to carry the load.</p><Link to="/category/travel-bags" className="mt-7 inline-block"><Button>Shop travel bags</Button></Link></div></section>
+  return <section className="relative my-0 flex min-h-[520px] items-center bg-ink text-white"><div className="absolute inset-0 opacity-50"><Media image={placeholder('travel-banner','Kamaru travel bags on a journey')}/></div><div className="absolute inset-0 bg-black/45"/><div className="container-site relative z-10 text-center"><h2 className="text-4xl font-extrabold md:text-7xl">TRAVEL WITH STYLE.<br/>TRAVEL WITH COMFORT.</h2><p className="mx-auto mt-5 max-w-lg text-white/70">Wherever you're headed, Kamaru is ready to carry the load.</p><Link to="/shop?category=travelling-bag" className="mt-7 inline-block"><Button>Shop travel bags</Button></Link></div></section>
 }
 
 function Journal() {
@@ -54,8 +55,61 @@ function Journal() {
 }
 
 function Newsletter() {
-  const submit=(e:React.FormEvent<HTMLFormElement>)=>{e.preventDefault();e.currentTarget.reset();alert('Thanks for joining the Kamaru list!')}
-  return <section className="bg-clay py-16 text-white"><div className="container-site flex flex-col items-center justify-between gap-7 text-center lg:flex-row lg:text-left"><div><h2 className="text-3xl font-extrabold">STAY IN THE LOOP</h2><p className="mt-2 text-white/70">Get updates on new arrivals, promotions and Kamaru adventures.</p></div><form onSubmit={submit} className="flex w-full max-w-xl flex-col gap-2 sm:flex-row"><label htmlFor="newsletter" className="sr-only">Email address</label><input required type="email" id="newsletter" placeholder="Enter your email address" className="min-h-12 min-w-0 flex-1 bg-white px-5 text-ink"/><Button type="submit" className="bg-ink hover:bg-black">Subscribe</Button></form></div></section>
+  const [email, setEmail] = useState('')
+  const [consent, setConsent] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!consent) {
+      setErr('Please agree to receive email updates.')
+      return
+    }
+    setBusy(true)
+    setErr('')
+    setMsg('')
+    try {
+      const res = await fetch('/api/public/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, consent: true }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((body as { error?: string }).error ?? 'Subscribe failed')
+      setMsg('Thanks for joining the Kamaru list!')
+      setEmail('')
+      setConsent(false)
+      e.currentTarget.reset()
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : 'Subscribe failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <section className="bg-clay py-16 text-white">
+      <div className="container-site flex flex-col items-center justify-between gap-7 text-center lg:flex-row lg:text-left">
+        <div>
+          <h2 className="text-3xl font-extrabold">STAY IN THE LOOP</h2>
+          <p className="mt-2 text-white/70">Get updates on new arrivals, promotions and Kamaru adventures.</p>
+        </div>
+        <form onSubmit={(e) => void submit(e)} className="w-full max-w-xl space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label htmlFor="newsletter" className="sr-only">Email address</label>
+            <input required type="email" id="newsletter" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email address" className="min-h-12 min-w-0 flex-1 bg-white px-5 text-ink" />
+            <Button type="submit" disabled={busy} className="bg-ink hover:bg-black">{busy ? '…' : 'Subscribe'}</Button>
+          </div>
+          <label className="flex items-start gap-2 text-left text-xs text-white/80">
+            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
+            I agree to receive marketing emails from Kamaru Philippines.
+          </label>
+          {msg && <p className="text-sm text-white/90">{msg}</p>}
+          {err && <p className="text-sm text-bone">{err}</p>}
+        </form>
+      </div>
+    </section>
+  )
 }
 
 const registry: Record<HomeSection['type'], React.ComponentType> = { hero:Hero, benefits:Benefits, categories:FeaturedCategories, 'new-arrivals':NewArrivals, editorial:Editorial, 'water-resistant':WaterResistant, story:Story, 'best-sellers':BestSellers, lifestyle:Lifestyle, journal:Journal, newsletter:Newsletter }

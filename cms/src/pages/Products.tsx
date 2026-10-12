@@ -16,29 +16,74 @@ export function ProductList() {
   const [data, setData] = useState<Snapshot | null>(null)
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
   useEffect(() => { void api.snapshot().then(setData).catch((e: Error) => setError(e.message)) }, [])
   const items = useMemo(() => {
     const term = search.toLowerCase()
     return (data?.products ?? []).filter((p) => !term || p.name.toLowerCase().includes(term) || p.slug.includes(term))
   }, [data, search])
+  const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  const publishSelected = async () => {
+    if (!data || !selected.length) return
+    for (const id of selected) {
+      const p = data.products.find((x) => x.id === id)
+      if (p) await api.saveProduct({ ...p, status: 'published' }, false)
+    }
+    setData(await api.snapshot())
+    setSelected([])
+  }
+  const exportCsv = () => {
+    const rows = [['id', 'name', 'slug', 'price', 'status']]
+    items.forEach((p) => rows.push([p.id, p.name, p.slug, String(p.price), p.status]))
+    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'kamaru-products.csv'
+    a.click()
+  }
   if (!data) return <p className="text-sm text-ink/50">{error || 'Loading products…'}</p>
   return (
     <div>
       <PageHeader kicker="Catalog" title="Products">
-        <Link to="/products/new"><Button>New product</Button></Link>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" disabled={!selected.length} onClick={() => void publishSelected()}>Publish selected</Button>
+          <Button type="button" variant="outline" onClick={exportCsv}>Export CSV</Button>
+          <Link to="/products/new"><Button>New product</Button></Link>
+        </div>
       </PageHeader>
       <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products" className="mb-5 max-w-sm" />
       <Card className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="text-[10px] tracking-[.14em] text-ink/40"><tr><th className="pb-3">NAME</th><th className="pb-3">PRICE</th><th className="pb-3">STATUS</th><th className="pb-3">STOCK</th><th className="pb-3">QUALITY</th></tr></thead>
+          <thead className="text-[10px] tracking-[.14em] text-ink/40"><tr><th className="pb-3 w-8" /><th className="pb-3">NAME</th><th className="pb-3">PRICE</th><th className="pb-3">STATUS</th><th className="pb-3">STOCK</th><th className="pb-3">QUALITY</th><th className="pb-3" /></tr></thead>
           <tbody>
             {items.map((product) => (
               <tr key={product.id} className="border-t border-ink/10">
+                <td className="py-3"><input type="checkbox" checked={selected.includes(product.id)} onChange={() => toggle(product.id)} aria-label={`Select ${product.name}`} /></td>
                 <td className="py-3 font-bold"><Link className="hover:text-clay" to={`/products/${product.id}`}>{product.name}</Link></td>
                 <td>{formatPrice(product.price)}</td>
                 <td className="uppercase">{product.status}</td>
                 <td>{product.inStock ? 'In stock' : 'Sold out'}</td>
                 <td className="text-ink/50">{product.dataQuality}</td>
+                <td className="py-3 text-right">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={async () => {
+                      const copy = {
+                        ...product,
+                        id: `${product.id}-copy`,
+                        slug: `${product.slug}-copy`,
+                        name: `${product.name} (copy)`,
+                        status: 'draft' as const,
+                      }
+                      await api.saveProduct(copy, true)
+                      setData(await api.snapshot())
+                    }}
+                  >
+                    Duplicate
+                  </Button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -55,7 +100,7 @@ const blank = (sortOrder: number): Product => ({
   price: 0,
   currency: 'PHP',
   categoryIds: [],
-  images: [0, 1, 2, 3].map((n) => ({ id: `image-${n}`, alt: '', width: 900, height: 1100 })),
+  images: [{ id: 'image-0', alt: '', width: 900, height: 1100 }],
   shortDescription: '',
   features: [],
   specs: {},
@@ -77,6 +122,8 @@ export function ProductEditor() {
   const [product, setProduct] = useState<Product | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [savedMsg, setSavedMsg] = useState('')
 
   useEffect(() => {
     void api.snapshot().then((snapshot) => {
@@ -88,15 +135,40 @@ export function ProductEditor() {
   if (error) return <Notice>{error}</Notice>
   if (!data || !product) return <p className="text-sm text-ink/50">{isNew ? 'Loading…' : 'Product not found.'}</p>
 
-  const set = <K extends keyof Product>(key: K, value: Product[K]) => setProduct({ ...product, [key]: value })
-  const save = async () => {
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (dirty) e.preventDefault()
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [dirty])
+
+  const set = <K extends keyof Product>(key: K, value: Product[K]) => {
+    setDirty(true)
+    setProduct({ ...product, [key]: value })
+  }
+  const validate = () => {
+    if (!product.name.trim()) return 'Product name is required.'
+    if (!product.slug.trim() && !product.name.trim()) return 'Slug is required.'
+    if (product.price < 0) return 'Price must be zero or greater.'
+    return ''
+  }
+  const save = async (closeAfter: boolean) => {
+    const v = validate()
+    if (v) {
+      setError(v)
+      return
+    }
     setBusy(true)
     setError('')
     try {
       const slug = product.slug || slugify(product.name)
       const next = { ...product, slug, id: product.id || `product-${slug}` }
       await api.saveProduct(next, isNew)
-      navigate('/products')
+      setDirty(false)
+      setSavedMsg('Saved.')
+      if (closeAfter) navigate('/products')
+      else if (isNew) navigate(`/products/${next.id}`, { replace: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed')
     } finally {
@@ -112,12 +184,18 @@ export function ProductEditor() {
   return (
     <div>
       <PageHeader kicker="Catalog" title={isNew ? 'New product' : product.name}>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {!isNew && product.status === 'published' && (
+            <a href={`/product/${product.slug}`} target="_blank" rel="noreferrer"><Button type="button" variant="outline">View on storefront</Button></a>
+          )}
+          {!isNew && product.status === 'draft' && <span className="self-center text-xs text-ink/50">Draft — not on the shop</span>}
           {!isNew && <Button type="button" variant="ghost" onClick={() => void remove()}>Delete</Button>}
           <Link to="/products"><Button type="button" variant="outline">Back</Button></Link>
-          <Button type="button" disabled={busy || !product.name} onClick={() => void save()}>Save</Button>
+          <Button type="button" disabled={busy || !product.name} onClick={() => void save(false)}>Save</Button>
+          <Button type="button" disabled={busy || !product.name} onClick={() => void save(true)}>Save and close</Button>
         </div>
       </PageHeader>
+      {savedMsg && <p className="mb-4 text-sm text-olive">{savedMsg}</p>}
       {error && <div className="mb-5"><Notice>{error}</Notice></div>}
       <div className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
         <Card className="space-y-5">
@@ -188,9 +266,10 @@ export function ProductEditor() {
             <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">COLORS</p>
             <div className="mt-3">
               <ColorPaletteEditor
+                assignOnly
                 data={data}
                 product={product}
-                setProduct={setProduct}
+                setProduct={(p) => { setDirty(true); setProduct(p) }}
                 onPaletteChange={(snapshot, syncProductColors) => {
                   setData(snapshot)
                   if (syncProductColors) {
@@ -211,15 +290,46 @@ export function ProductEditor() {
           </Card>
         </div>
       </div>
-      <Card className="mt-6 grid gap-6 md:grid-cols-2">
-        {product.images.map((image, index) => (
-          <ImageField
-            key={image.id}
-            label={`Image ${index + 1}`}
-            image={image}
-            onChange={(next) => set('images', product.images.map((img, i) => (i === index ? next : img)))}
-          />
-        ))}
+      <Card className="mt-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">PRODUCT IMAGES</p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              set('images', [
+                ...product.images,
+                { id: `image-${Date.now()}`, alt: '', width: 900, height: 1100 },
+              ])
+            }
+          >
+            Add image slot
+          </Button>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          {product.images.map((image, index) => (
+            <div key={image.id} className="space-y-2">
+              <ImageField
+                label={`Image ${index + 1}`}
+                image={image}
+                onChange={(next) => set('images', product.images.map((img, i) => (i === index ? next : img)))}
+              />
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" disabled={index === 0} onClick={() => {
+                  const next = [...product.images]
+                  ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+                  set('images', next)
+                }}>Up</Button>
+                <Button type="button" variant="ghost" disabled={index === product.images.length - 1} onClick={() => {
+                  const next = [...product.images]
+                  ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+                  set('images', next)
+                }}>Down</Button>
+                <Button type="button" variant="ghost" disabled={product.images.length <= 1} onClick={() => set('images', product.images.filter((_, i) => i !== index))}>Remove slot</Button>
+              </div>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   )

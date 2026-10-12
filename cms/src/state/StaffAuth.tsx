@@ -1,6 +1,7 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Profile } from '../../../src/types'
 import { adminApi } from '../adminApi'
+import { setStaffToken } from '../api'
 
 interface StaffAuthValue {
   staff: Profile | null
@@ -16,7 +17,9 @@ export function StaffAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<{ staff: Profile; token: string } | null>(() => {
     try {
       const raw = localStorage.getItem(KEY)
-      return raw ? JSON.parse(raw) as { staff: Profile; token: string } : null
+      const parsed = raw ? JSON.parse(raw) as { staff: Profile; token: string } : null
+      if (parsed?.token) setStaffToken(parsed.token)
+      return parsed
     } catch {
       return null
     }
@@ -26,13 +29,19 @@ export function StaffAuthProvider({ children }: { children: ReactNode }) {
     const res = await adminApi.staffLogin(email, password)
     const next = { staff: res.profile, token: res.token ?? res.userId }
     localStorage.setItem(KEY, JSON.stringify(next))
+    setStaffToken(next.token)
     setSession(next)
   }
 
   const logout = () => {
     localStorage.removeItem(KEY)
+    setStaffToken(null)
     setSession(null)
   }
+
+  useEffect(() => {
+    setStaffToken(session?.token ?? null)
+  }, [session])
 
   const value = useMemo<StaffAuthValue>(() => ({
     staff: session?.staff ?? null,

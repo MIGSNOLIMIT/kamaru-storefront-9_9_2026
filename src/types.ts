@@ -66,12 +66,14 @@ export interface Category {
   status: ContentStatus
 }
 
+export type ArticleBlock = { type: 'heading' | 'paragraph'; text: string }
+
 export interface Article {
   id: string
   slug: string
   title: string
   excerpt: string
-  body: string[]
+  body: ArticleBlock[]
   category: string
   publishedAt: string
   image: ImageRef
@@ -83,11 +85,30 @@ export interface ProductQuery {
   search?: string
   category?: string
   color?: string
+  material?: ProductMaterial
   minPrice?: number
   maxPrice?: number
   sort?: 'featured' | 'newest' | 'price-asc' | 'price-desc' | 'name'
   flag?: 'newArrival' | 'bestSeller' | 'featured'
   limit?: number
+  offset?: number
+}
+
+export interface SectionContent {
+  headline?: string
+  subheadline?: string
+  body?: string
+  image?: ImageRef
+  ctaLabel?: string
+  ctaHref?: string
+}
+
+export interface AboutPageContent {
+  hero: { kicker: string; title: string; image: ImageRef }
+  story: { title: string; paragraphs: string[] }
+  vision: { title: string; body: string }
+  mission: { title: string; body: string }
+  values: { title: string; items: string[] }
 }
 
 export interface Paginated<T> { items: T[]; total: number }
@@ -115,18 +136,20 @@ export interface SiteSettings {
   ga4MeasurementId?: string
 }
 
+type HomeSectionBase = { id: string; sortOrder: number; content?: SectionContent }
+
 export type HomeSection =
-  | { id: string; type: 'hero'; sortOrder: number }
-  | { id: string; type: 'benefits'; sortOrder: number }
-  | { id: string; type: 'categories'; sortOrder: number }
-  | { id: string; type: 'new-arrivals'; sortOrder: number }
-  | { id: string; type: 'editorial'; sortOrder: number }
-  | { id: string; type: 'water-resistant'; sortOrder: number }
-  | { id: string; type: 'story'; sortOrder: number }
-  | { id: string; type: 'best-sellers'; sortOrder: number }
-  | { id: string; type: 'lifestyle'; sortOrder: number }
-  | { id: string; type: 'journal'; sortOrder: number }
-  | { id: string; type: 'newsletter'; sortOrder: number }
+  | (HomeSectionBase & { type: 'hero' })
+  | (HomeSectionBase & { type: 'benefits' })
+  | (HomeSectionBase & { type: 'categories' })
+  | (HomeSectionBase & { type: 'new-arrivals' })
+  | (HomeSectionBase & { type: 'editorial' })
+  | (HomeSectionBase & { type: 'water-resistant' })
+  | (HomeSectionBase & { type: 'story' })
+  | (HomeSectionBase & { type: 'best-sellers' })
+  | (HomeSectionBase & { type: 'lifestyle' })
+  | (HomeSectionBase & { type: 'journal' })
+  | (HomeSectionBase & { type: 'newsletter' })
 
 export interface Profile {
   id: string
@@ -177,13 +200,22 @@ export interface Inquiry {
   createdAt: string
 }
 
+export interface CatalogStats {
+  minPrice: number
+  maxPrice: number
+  materials: ProductMaterial[]
+}
+
 export interface ContentSource {
   listProducts(query?: ProductQuery): Promise<Paginated<Product>>
+  getProductsByIds(ids: string[]): Promise<Product[]>
   getProduct(slug: string): Promise<Product | null>
   getCategoryTree(): Promise<Category[]>
   listColors(): Promise<ColorOption[]>
+  getCatalogStats(): Promise<CatalogStats>
   listArticles(): Promise<Paginated<Article>>
   getArticle(slug: string): Promise<Article | null>
   listSections(pageKey: string): Promise<HomeSection[]>
   getSiteSettings(): Promise<SiteSettings>
+  getAboutPage(): Promise<AboutPageContent | null>
 }

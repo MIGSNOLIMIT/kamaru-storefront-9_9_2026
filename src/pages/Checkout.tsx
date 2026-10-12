@@ -7,6 +7,7 @@ import { useAuth } from '../state/AuthContext'
 import { useStore } from '../state/StoreContext'
 import { useLanguage } from '../state/LanguageContext'
 import { commerceApi } from '../lib/commerceApi'
+import { trackEvent } from '../lib/analytics'
 import type { FulfillmentMethod, PaymentMethod } from '../types'
 import { Seo } from '../components/Seo'
 
@@ -24,7 +25,9 @@ export default function Checkout() {
   const [fulfillmentMethod, setFulfillmentMethod] = useState<FulfillmentMethod>('lbc')
   const [proofFile, setProofFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   const [doneId, setDoneId] = useState('')
+  const moq = settings?.bulkMoq
 
   if (!isAuthenticated) return <Navigate to={`/account?next=${encodeURIComponent('/checkout')}`} replace />
   if (!cart.length && !doneId) {
@@ -42,7 +45,12 @@ export default function Checkout() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
+    if (moq && cart.some((line) => line.quantity < moq)) {
+      setError(`Each line must be at least ${moq} units for bulk orders.`)
+      return
+    }
     setBusy(true)
+    setError('')
     try {
       let paymentProofUrl: string | undefined
       if (paymentMethod !== 'pickup' && proofFile) {
@@ -66,10 +74,11 @@ export default function Checkout() {
         customerNotes: customerNotes || undefined,
         subtotal,
       })
+      trackEvent('purchase', { transaction_id: order.id, value: subtotal, currency: 'PHP' })
       clearCart()
       setDoneId(order.id)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Checkout failed')
+      setError(err instanceof Error ? err.message : 'Checkout failed')
     } finally {
       setBusy(false)
     }
@@ -91,6 +100,8 @@ export default function Checkout() {
       <Seo title="Bulk checkout | Kamaru" />
       <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Cart', to: '/cart' }, { label: 'Bulk checkout' }]} />
       <h1 className="my-8 text-4xl font-extrabold md:text-5xl">BULK CHECKOUT</h1>
+      {moq ? <p className="mb-6 text-sm text-ink/60">Minimum {moq} units per product line.</p> : null}
+      {error && <p className="mb-6 border border-clay/30 bg-clay/5 p-4 text-sm text-clay">{error}</p>}
       <form onSubmit={(e) => void submit(e)} className="grid gap-10 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6 bg-white p-6 md:p-8">
           <Field label="Company name (optional)"><input className={fieldClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} /></Field>
@@ -126,6 +137,7 @@ export default function Checkout() {
               )}
               <Field label="Upload payment proof">
                 <input type="file" accept="image/*" className={fieldClass} onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} required />
+                {proofFile && <p className="mt-2 text-xs text-ink/55">Selected: {proofFile.name}</p>}
               </Field>
             </div>
           )}

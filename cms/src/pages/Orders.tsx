@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { BulkOrder, OrderStatus } from '../../../src/types'
 import { adminApi } from '../adminApi'
 import { useStaffAuth } from '../state/StaffAuth'
-import { Button, Card, Field, Notice, PageHeader, Select, Textarea } from '../ui'
+import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
 
 const statuses: OrderStatus[] = ['pending', 'payment_review', 'confirmed', 'preparing', 'shipped', 'completed', 'cancelled']
 
@@ -11,6 +11,8 @@ export function Orders() {
   const [orders, setOrders] = useState<BulkOrder[]>([])
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState('')
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
 
   const load = () => {
     if (!token) return
@@ -36,22 +38,53 @@ export function Orders() {
     }
   }
 
+  const visible = orders.filter((order) => {
+    if (statusFilter !== 'all' && order.status !== statusFilter) return false
+    const term = search.toLowerCase()
+    if (!term) return true
+    return [order.id, order.companyName ?? '', order.deliveryAddress ?? '', order.customerNotes ?? ''].some((v) =>
+      v.toLowerCase().includes(term),
+    )
+  })
+
+  const openProof = async (orderId: string) => {
+    if (!token) return
+    try {
+      const { url } = await adminApi.paymentProofUrl(token, orderId)
+      window.open(url, '_blank')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load proof')
+    }
+  }
+
   return (
     <div>
       <PageHeader kicker="Commerce" title="Bulk orders inbox" />
+      <div className="mb-5 flex flex-wrap gap-3">
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="max-w-xs" />
+        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'all')}>
+          <option value="all">All statuses</option>
+          {statuses.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </Select>
+      </div>
       {error && <div className="mb-4"><Notice>{error}</Notice></div>}
       <div className="space-y-5">
-        {!orders.length && <p className="text-sm text-ink/50">No bulk orders yet.</p>}
-        {orders.map((order) => (
+        {!visible.length && <p className="text-sm text-ink/50">No bulk orders yet.</p>}
+        {visible.map((order) => (
           <Card key={order.id} className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="font-bold">{order.id}</p>
                 <p className="text-sm text-ink/55">{new Date(order.createdAt).toLocaleString()} · PHP {order.subtotal.toFixed(2)}</p>
                 <p className="text-xs text-ink/45">{order.paymentMethod} · {order.fulfillmentMethod}</p>
+                {order.companyName && <p className="mt-2 text-sm"><strong>Company:</strong> {order.companyName}</p>}
+                {order.deliveryAddress && <p className="text-sm text-ink/60"><strong>Address:</strong> {order.deliveryAddress}</p>}
+                {order.customerNotes && <p className="text-sm text-ink/60"><strong>Customer notes:</strong> {order.customerNotes}</p>}
               </div>
               {order.paymentProofUrl && (
-                <a href={order.paymentProofUrl} target="_blank" rel="noreferrer" className="text-xs font-bold text-clay">View payment proof</a>
+                <Button type="button" variant="outline" onClick={() => void openProof(order.id)}>View payment proof</Button>
               )}
             </div>
             <ul className="text-sm text-ink/65">

@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { Article } from '../../../src/types'
+import type { Article, ArticleBlock } from '../../../src/types'
+
+function blocksToText(blocks: ArticleBlock[]) {
+  return blocks.map((b) => (b.type === 'heading' ? `## ${b.text}` : b.text)).join('\n\n')
+}
+
+function textToBlocks(text: string): ArticleBlock[] {
+  return text
+    .split(/\n\s*\n/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk) => (chunk.startsWith('## ') ? { type: 'heading' as const, text: chunk.slice(3) } : { type: 'paragraph' as const, text: chunk }))
+}
 import { api, slugify, type Snapshot } from '../api'
 import { ImageField } from '../components/ImageField'
 import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
@@ -35,7 +47,7 @@ const blank = (sortOrder: number): Article => ({
   slug: '',
   title: '',
   excerpt: '',
-  body: [''],
+  body: [{ type: 'paragraph', text: '' }],
   category: 'Gear Care',
   publishedAt: new Date().toISOString().slice(0, 10),
   image: { id: 'article-image', alt: '', width: 1600, height: 900 },
@@ -107,7 +119,9 @@ export function ArticleEditor() {
           </Field>
         </div>
         <Field label="Excerpt"><Textarea rows={3} value={article.excerpt} onChange={(e) => set('excerpt', e.target.value)} /></Field>
-        <Field label="Body (blank line starts a new paragraph)"><Textarea rows={10} value={article.body.join('\n\n')} onChange={(e) => set('body', e.target.value.split(/\n\s*\n/))} /></Field>
+        <Field label="Body (blank line = new block; prefix ## for headings)">
+          <Textarea rows={10} value={blocksToText(article.body)} onChange={(e) => set('body', textToBlocks(e.target.value))} />
+        </Field>
         <ImageField image={article.image} onChange={(image) => set('image', image)} label="Article image" />
       </Card>
     </div>

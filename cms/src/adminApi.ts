@@ -25,4 +25,6 @@ export const adminApi = {
   updateOrder: (token: string, id: string, patch: Partial<BulkOrder>) =>
     request<BulkOrder>(`/api/admin/orders/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(patch) }, token),
   inquiries: (token: string) => request<unknown[]>('/api/admin/inquiries', undefined, token),
+  paymentProofUrl: (token: string, orderId: string) =>
+    request<{ url: string }>(`/api/admin/orders/${encodeURIComponent(orderId)}/payment-proof-url`, undefined, token),
 }

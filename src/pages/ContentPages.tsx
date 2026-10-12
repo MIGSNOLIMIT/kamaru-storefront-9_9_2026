@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Mail, MapPin, Phone, Minus, Plus, Trash2 } from 'lucide-react'
 import { Breadcrumbs, Button, Media, SectionHeading } from '../components/UI'
 import { ProductGrid, formatPrice } from '../components/Product'
-import { useArticle, useArticles, useProducts, useSiteSettings } from '../hooks/useContent'
+import { useAboutPage, useArticle, useArticles, useProducts, useSiteSettings } from '../hooks/useContent'
 import { useStore } from '../state/StoreContext'
 import { useAuth } from '../state/AuthContext'
 import { useLanguage } from '../state/LanguageContext'
@@ -13,11 +13,64 @@ import { Seo } from '../components/Seo'
 
 const inputClass = 'min-h-12 w-full border border-ink/20 px-4 font-normal tracking-normal'
 
-const heroImage={id:'about-hero',alt:'Kamaru Filipino bag makers and outdoor community',width:1600,height:900}
-
 export function About() {
-  const values=['Commitment to Excellence','Integrity','Respect for Individual and Teamwork','Kaizen','Sense of Urgency and Determination']
-  return <><section className="relative flex min-h-[450px] items-center bg-ink text-white"><div className="absolute inset-0 opacity-45"><Media image={heroImage}/></div><div className="container-site relative z-10 text-center"><p className="text-xs font-bold tracking-[.25em] text-khaki">GAWANG PINOY. TIBAY PINOY.</p><h1 className="mt-4 text-5xl font-extrabold md:text-8xl">ABOUT KAMARU</h1></div></section><section className="section-space"><div className="container-site grid gap-12 lg:grid-cols-2"><div><p className="text-xs font-bold tracking-[.2em] text-clay">ROOTED IN 1988</p><h2 className="mt-4 text-4xl font-extrabold md:text-6xl">A FILIPINO STORY BUILT TO CARRY ON</h2></div><div className="space-y-5 leading-8 text-ink/65"><p>Kamaru is associated with GLPPI, a 100% Filipino-owned company established in 1988. The company began as a modest home-based corporation specializing in the distribution and sales of quality bags.</p><p>The Kamaru brand eventually became known for dependable, practical carry made for Filipino life—from daily commutes to bigger adventures.</p><p>The name carries associations of home, protection, toughness, and strength. But its meaning is best understood through every bag made to carry your load with ease.</p></div></div></section><section className="bg-ink text-white section-space"><div className="container-site grid gap-10 md:grid-cols-2"><div><p className="text-xs font-bold tracking-widest text-khaki">OUR VISION</p><h2 className="mt-4 text-3xl font-extrabold">World-class quality, proudly Filipino.</h2><p className="mt-5 leading-7 text-white/60">To be recognized as a highly respected, leading marketing organization distributing world-class QUALITY products.</p></div><div><p className="text-xs font-bold tracking-widest text-khaki">MISSION</p><h2 className="mt-4 text-3xl font-extrabold">Committed to total customer satisfaction.</h2><p className="mt-5 leading-7 text-white/60">Through competent and values-oriented employees, ensuring growth and profitability while contributing to the country's economic stability.</p></div></div></section><section className="section-space"><div className="container-site"><SectionHeading title="VALUES THAT GUIDE US"/><div className="grid gap-px bg-ink/10 md:grid-cols-5">{values.map((v,i)=><div key={v} className="bg-bone p-7"><span className="font-display text-4xl font-extrabold text-clay/35">0{i+1}</span><h3 className="mt-7 font-bold">{v}</h3></div>)}</div></div></section></>
+  const { data: page } = useAboutPage()
+  const hero = page?.hero ?? { kicker: 'GAWANG PINOY. TIBAY PINOY.', title: 'ABOUT KAMARU', image: { id: 'about-hero', alt: 'About Kamaru', width: 1600, height: 900 } }
+  const story = page?.story ?? { title: 'A FILIPINO STORY BUILT TO CARRY ON', paragraphs: ['Kamaru is a Filipino bag brand with roots dating back to 1988.'] }
+  const vision = page?.vision ?? { title: 'World-class quality, proudly Filipino.', body: 'To be recognized as a highly respected marketing organization.' }
+  const mission = page?.mission ?? { title: 'Committed to total customer satisfaction.', body: 'Through competent employees and values-oriented service.' }
+  const values = page?.values.items ?? ['Commitment to Excellence', 'Integrity', 'Respect for Individual and Teamwork', 'Kaizen', 'Sense of Urgency and Determination']
+  return (
+    <>
+      <section className="relative flex min-h-[450px] items-center bg-ink text-white">
+        <div className="absolute inset-0 opacity-45"><Media image={hero.image} /></div>
+        <div className="container-site relative z-10 text-center">
+          <p className="text-xs font-bold tracking-[.25em] text-khaki">{hero.kicker}</p>
+          <h1 className="mt-4 text-5xl font-extrabold md:text-8xl">{hero.title}</h1>
+        </div>
+      </section>
+      <section className="section-space">
+        <div className="container-site grid gap-12 lg:grid-cols-2">
+          <div>
+            <p className="text-xs font-bold tracking-[.2em] text-clay">ROOTED IN 1988</p>
+            <h2 className="mt-4 text-4xl font-extrabold md:text-6xl">{story.title}</h2>
+          </div>
+          <div className="space-y-5 leading-8 text-ink/65">
+            {story.paragraphs.map((p) => (
+              <p key={p}>{p}</p>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="bg-ink text-white section-space">
+        <div className="container-site grid gap-10 md:grid-cols-2">
+          <div>
+            <p className="text-xs font-bold tracking-widest text-khaki">OUR VISION</p>
+            <h2 className="mt-4 text-3xl font-extrabold">{vision.title}</h2>
+            <p className="mt-5 leading-7 text-white/60">{vision.body}</p>
+          </div>
+          <div>
+            <p className="text-xs font-bold tracking-widest text-khaki">MISSION</p>
+            <h2 className="mt-4 text-3xl font-extrabold">{mission.title}</h2>
+            <p className="mt-5 leading-7 text-white/60">{mission.body}</p>
+          </div>
+        </div>
+      </section>
+      <section className="section-space">
+        <div className="container-site">
+          <SectionHeading title={page?.values.title ?? 'VALUES THAT GUIDE US'} />
+          <div className="grid gap-px bg-ink/10 md:grid-cols-5">
+            {values.map((v, i) => (
+              <div key={v} className="bg-bone p-7">
+                <span className="font-display text-4xl font-extrabold text-clay/35">0{i + 1}</span>
+                <h3 className="mt-7 font-bold">{v}</h3>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
+  )
 }
 
 export function Blog() {
@@ -29,23 +82,33 @@ export function ArticlePage() {
   const {slug}=useParams(), {data:a,loading}=useArticle(slug)
   if(loading)return <div className="container-site section-space">Loading journal...</div>
   if(!a)return <NotFound/>
-  return <article><Seo title={`${a.title} | Kamaru Journal`} description={a.excerpt} jsonLd={{'@context':'https://schema.org','@type':'Article',headline:a.title,datePublished:a.publishedAt,description:a.excerpt,publisher:{'@type':'Organization',name:'KAMARU Philippines'}}}/><header className="container-site section-space max-w-4xl text-center"><Breadcrumbs items={[{label:'Home',to:'/'},{label:'Journal',to:'/blog'},{label:a.title}]}/><p className="mt-12 text-xs font-bold tracking-widest text-clay">{a.category}</p><h1 className="mt-4 text-4xl font-extrabold md:text-7xl">{a.title}</h1><p className="mt-5 text-ink/55">{new Date(a.publishedAt).toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'})}</p></header><div className="container-site h-[55vw] max-h-[680px] min-h-[360px]"><Media image={a.image}/></div><div className="mx-auto max-w-3xl section-space px-5">{a.body.map(p=><p key={p} className="mb-6 text-lg leading-8 text-ink/70">{p}</p>)}</div></article>
+  return <article><Seo title={`${a.title} | Kamaru Journal`} description={a.excerpt} jsonLd={{'@context':'https://schema.org','@type':'Article',headline:a.title,datePublished:a.publishedAt,description:a.excerpt,publisher:{'@type':'Organization',name:'KAMARU Philippines'}}}/><header className="container-site section-space max-w-4xl text-center"><Breadcrumbs items={[{label:'Home',to:'/'},{label:'Journal',to:'/blog'},{label:a.title}]}/><p className="mt-12 text-xs font-bold tracking-widest text-clay">{a.category}</p><h1 className="mt-4 text-4xl font-extrabold md:text-7xl">{a.title}</h1><p className="mt-5 text-ink/55">{new Date(a.publishedAt).toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'})}</p></header><div className="container-site h-[55vw] max-h-[680px] min-h-[360px]"><Media image={a.image}/></div><div className="mx-auto max-w-3xl section-space px-5">{a.body.map((block, i) => block.type === 'heading' ? <h2 key={i} className="mb-4 text-2xl font-extrabold">{block.text}</h2> : <p key={i} className="mb-6 text-lg leading-8 text-ink/70">{block.text}</p>)}</div></article>
 }
 
 export function Contact() {
   const { data: s } = useSiteSettings()
   const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setBusy(true)
+    setError('')
     const form = new FormData(e.currentTarget)
-    await commerceApi.submitInquiry({
-      name: String(form.get('name')),
-      email: String(form.get('email')),
-      subject: String(form.get('subject')),
-      message: String(form.get('message')),
-    })
-    setSent(true)
-    e.currentTarget.reset()
+    try {
+      await commerceApi.submitInquiry({
+        name: String(form.get('name')),
+        email: String(form.get('email')),
+        subject: String(form.get('subject')),
+        message: String(form.get('message')),
+      })
+      setSent(true)
+      e.currentTarget.reset()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send message.')
+    } finally {
+      setBusy(false)
+    }
   }
   return (
     <div className="container-site section-space">
@@ -63,11 +126,12 @@ export function Contact() {
         </div>
         <form onSubmit={(e) => void submit(e)} className="space-y-5 bg-white p-7 md:p-10">
           {sent && <p className="text-sm text-olive">Message sent. We will reply to your email soon.</p>}
+          {error && <p className="text-sm text-clay">{error}</p>}
           <label className="block text-xs font-bold tracking-wider">NAME<input required name="name" className={`mt-2 ${inputClass}`} /></label>
           <label className="block text-xs font-bold tracking-wider">EMAIL<input required name="email" type="email" className={`mt-2 ${inputClass}`} /></label>
           <label className="block text-xs font-bold tracking-wider">SUBJECT<input required name="subject" className={`mt-2 ${inputClass}`} /></label>
           <label className="block text-xs font-bold tracking-wider">MESSAGE<textarea required name="message" rows={6} className="mt-2 w-full border border-ink/20 p-4 font-normal tracking-normal" /></label>
-          <Button type="submit">Send message</Button>
+          <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send message'}</Button>
         </form>
       </div>
     </div>
