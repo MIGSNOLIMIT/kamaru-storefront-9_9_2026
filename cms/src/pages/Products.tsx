@@ -32,6 +32,32 @@ export function ProductList() {
     setData(await api.snapshot())
     setSelected([])
   }
+  const deleteOne = async (product: Product) => {
+    if (!confirm(`Delete ${product.name}? This cannot be undone.`)) return
+    setError('')
+    try {
+      await api.deleteProduct(product.id)
+      setData(await api.snapshot())
+      setSelected((s) => s.filter((id) => id !== product.id))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed')
+    }
+  }
+  const deleteSelected = async () => {
+    if (!selected.length || !confirm(`Delete ${selected.length} product(s)? This cannot be undone.`)) return
+    setError('')
+    const failures: string[] = []
+    for (const id of selected) {
+      try {
+        await api.deleteProduct(id)
+      } catch (e) {
+        failures.push(e instanceof Error ? e.message : id)
+      }
+    }
+    setData(await api.snapshot())
+    setSelected([])
+    if (failures.length) setError(failures.join(' · '))
+  }
   const exportCsv = () => {
     const rows = [['id', 'name', 'slug', 'price', 'status']]
     items.forEach((p) => rows.push([p.id, p.name, p.slug, String(p.price), p.status]))
@@ -48,10 +74,12 @@ export function ProductList() {
       <PageHeader kicker="Catalog" title="Products">
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" disabled={!selected.length} onClick={() => void publishSelected()}>Publish selected</Button>
+          <Button type="button" variant="outline" disabled={!selected.length} onClick={() => void deleteSelected()}>Delete selected</Button>
           <Button type="button" variant="outline" onClick={exportCsv}>Export CSV</Button>
           <Link to="/products/new"><Button>New product</Button></Link>
         </div>
       </PageHeader>
+      {error && <div className="mb-5"><Notice>{error}</Notice></div>}
       <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products" className="mb-5 max-w-sm" />
       <Card className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
@@ -66,23 +94,26 @@ export function ProductList() {
                 <td>{product.inStock ? 'In stock' : 'Sold out'}</td>
                 <td className="text-ink/50">{product.dataQuality}</td>
                 <td className="py-3 text-right">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={async () => {
-                      const copy = {
-                        ...product,
-                        id: `${product.id}-copy`,
-                        slug: `${product.slug}-copy`,
-                        name: `${product.name} (copy)`,
-                        status: 'draft' as const,
-                      }
-                      await api.saveProduct(copy, true)
-                      setData(await api.snapshot())
-                    }}
-                  >
-                    Duplicate
-                  </Button>
+                  <div className="flex flex-wrap justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={async () => {
+                        const copy = {
+                          ...product,
+                          id: `${product.id}-copy`,
+                          slug: `${product.slug}-copy`,
+                          name: `${product.name} (copy)`,
+                          status: 'draft' as const,
+                        }
+                        await api.saveProduct(copy, true)
+                        setData(await api.snapshot())
+                      }}
+                    >
+                      Duplicate
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={() => void deleteOne(product)}>Delete</Button>
+                  </div>
                 </td>
               </tr>
             ))}

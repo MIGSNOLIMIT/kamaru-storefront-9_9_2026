@@ -8,7 +8,18 @@ import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from
 export function CategoryList() {
   const [data, setData] = useState<Snapshot | null>(null)
   const [error, setError] = useState('')
-  useEffect(() => { void api.snapshot().then(setData).catch((e: Error) => setError(e.message)) }, [])
+  const reload = () => void api.snapshot().then(setData).catch((e: Error) => setError(e.message))
+  useEffect(() => { reload() }, [])
+  const remove = async (category: Category) => {
+    if (!confirm(`Delete ${category.name}?`)) return
+    setError('')
+    try {
+      await api.deleteCategory(category.id)
+      reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed')
+    }
+  }
   if (!data) return <p className="text-sm text-ink/50">{error || 'Loading categories…'}</p>
   const roots = data.categories.filter((c) => !c.parentId)
   return (
@@ -16,14 +27,21 @@ export function CategoryList() {
       <PageHeader kicker="Catalog" title="Categories">
         <Link to="/categories/new"><Button>New category</Button></Link>
       </PageHeader>
+      {error && <div className="mb-5"><Notice>{error}</Notice></div>}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {roots.map((root) => (
           <Card key={root.id}>
-            <Link to={`/categories/${root.id}`} className="font-display text-lg font-bold hover:text-clay">{root.name}</Link>
+            <div className="flex items-start justify-between gap-2">
+              <Link to={`/categories/${root.id}`} className="font-display text-lg font-bold hover:text-clay">{root.name}</Link>
+              <Button type="button" variant="ghost" onClick={() => void remove(root)}>Delete</Button>
+            </div>
             <p className="mt-2 text-sm text-ink/55">{root.description}</p>
-            <ul className="mt-4 space-y-1 text-sm">
+            <ul className="mt-4 space-y-2 text-sm">
               {data.categories.filter((c) => c.parentId === root.id).map((child) => (
-                <li key={child.id}><Link className="hover:text-clay" to={`/categories/${child.id}`}>{child.name}</Link></li>
+                <li key={child.id} className="flex items-center justify-between gap-2">
+                  <Link className="hover:text-clay" to={`/categories/${child.id}`}>{child.name}</Link>
+                  <Button type="button" variant="ghost" onClick={() => void remove(child)}>Delete</Button>
+                </li>
               ))}
             </ul>
           </Card>

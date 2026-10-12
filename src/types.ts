@@ -94,6 +94,11 @@ export interface ProductQuery {
   offset?: number
 }
 
+export interface SectionContentItem {
+  title?: string
+  text?: string
+}
+
 export interface SectionContent {
   headline?: string
   subheadline?: string
@@ -101,6 +106,7 @@ export interface SectionContent {
   image?: ImageRef
   ctaLabel?: string
   ctaHref?: string
+  items?: SectionContentItem[]
 }
 
 export interface AboutPageContent {
