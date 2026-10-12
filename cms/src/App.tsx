@@ -8,6 +8,8 @@ import { CategoryEditor, CategoryList } from './pages/Categories'
 import { ColorsPage } from './pages/Colors'
 import { Dashboard } from './pages/Dashboard'
 import { Inquiries } from './pages/Inquiries'
+import { Account } from './pages/Account'
+import { ConfirmEmail } from './pages/ConfirmEmail'
 import { Login } from './pages/Login'
 import { MediaPage } from './pages/Media'
 import { ResetPassword } from './pages/ResetPassword'
@@ -31,6 +33,7 @@ const links = [
   ['Journal', '/articles'],
   ['Homepage', '/homepage'],
   ['About', '/about'],
+  ['Account', '/account'],
   ['Settings', '/settings'],
 ] as const
 
@@ -59,6 +62,7 @@ function Shell() {
   const { pathname } = useLocation()
   const [mobileNav, setMobileNav] = useState(false)
   if (pathname === '/reset-password') return <ResetPassword />
+  if (pathname === '/confirm-email') return <ConfirmEmail />
   if (!staff) return <Login />
 
   return (
@@ -124,6 +128,7 @@ function Shell() {
             <Route path="articles/:id" element={<ArticleEditor />} />
             <Route path="homepage" element={<Sections />} />
             <Route path="about" element={<AboutPageEditor />} />
+            <Route path="account" element={<Account />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

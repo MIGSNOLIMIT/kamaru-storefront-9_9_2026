@@ -53,6 +53,17 @@ export function Settings() {
       {error && <div className="mb-5"><Notice>{error}</Notice></div>}
       {saved && <p className="mb-5 text-sm text-olive">{saved}</p>}
       <Card className="grid max-w-3xl gap-5">
+        <ImageField
+          label="Header logo"
+          image={{ id: 'header-logo', alt: settings.brandName || 'Header logo', width: 320, height: 80, src: settings.headerLogoUrl }}
+          onChange={(img) => set('headerLogoUrl', img.src || undefined)}
+        />
+        <ImageField
+          label="Footer logo"
+          image={{ id: 'footer-logo', alt: settings.brandName || 'Footer logo', width: 320, height: 80, src: settings.footerLogoUrl }}
+          onChange={(img) => set('footerLogoUrl', img.src || undefined)}
+        />
+        <p className="text-xs text-ink/45">Header logo appears in the top bar and menu. Footer logo appears on the dark footer. Leave either empty to keep the KAMARU wordmark.</p>
         <div className="grid gap-5 md:grid-cols-2">
           <Field label="Brand name"><Input value={settings.brandName} onChange={(e) => set('brandName', e.target.value)} /></Field>
           <Field label="Tagline"><Input value={settings.tagline} onChange={(e) => set('tagline', e.target.value)} /></Field>

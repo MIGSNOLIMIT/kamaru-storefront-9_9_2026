@@ -8,6 +8,7 @@ interface StaffAuthValue {
   token: string | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  updateStaff: (profile: Profile) => void
 }
 
 const StaffAuthContext = createContext<StaffAuthValue | null>(null)
@@ -39,6 +40,15 @@ export function StaffAuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
   }
 
+  const updateStaff = (profile: Profile) => {
+    setSession((current) => {
+      if (!current || current.staff.id !== profile.id) return current
+      const next = { ...current, staff: profile }
+      localStorage.setItem(KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
   useEffect(() => {
     setStaffToken(session?.token ?? null)
   }, [session])
@@ -48,6 +58,7 @@ export function StaffAuthProvider({ children }: { children: ReactNode }) {
     token: session?.token ?? null,
     login,
     logout,
+    updateStaff,
   }), [session])
 
   return <StaffAuthContext.Provider value={value}>{children}</StaffAuthContext.Provider>

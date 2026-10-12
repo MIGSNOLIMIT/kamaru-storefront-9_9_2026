@@ -131,6 +131,8 @@ export interface BankDetails {
 export interface SiteSettings {
   brandName: string
   tagline: string
+  headerLogoUrl?: string
+  footerLogoUrl?: string
   email: string
   phones: string[]
   fax: string

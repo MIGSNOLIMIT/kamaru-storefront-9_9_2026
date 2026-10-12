@@ -36,10 +36,10 @@ function loadRecent(): string[] {
   }
 }
 
-export function Logo({ light = false }: { light?: boolean }) {
+export function Logo({ light = false, src }: { light?: boolean; src?: string }) {
   return (
-    <Link to="/" className={`font-display text-2xl font-extrabold tracking-[.2em] ${light ? 'text-white' : 'text-ink'}`}>
-      KAMARU
+    <Link to="/" className={`inline-flex items-center font-display text-2xl font-extrabold tracking-[.2em] ${light ? 'text-white' : 'text-ink'}`}>
+      {src ? <img src={src} alt="KAMARU" className="h-10 w-auto max-w-[180px] object-contain" /> : 'KAMARU'}
     </Link>
   )
 }
@@ -277,6 +277,7 @@ export function Header() {
   const [mega, setMega] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const { data: categories } = useCategories()
+  const { data: settings } = useSiteSettings()
   const { cartCount, wishlist, setCartOpen } = useStore()
   const { tr, locale, setLocale } = useLanguage()
 
@@ -305,7 +306,7 @@ export function Header() {
           <button type="button" onClick={() => setMenu(true)} aria-label="Open menu" className="grid size-11 place-items-center lg:hidden">
             <Menu />
           </button>
-          <Logo />
+          <Logo src={settings?.headerLogoUrl} />
           <nav aria-label="Main navigation" className="hidden items-center gap-7 lg:flex">
             {navKeys.slice(0, 3).map(([key, to]) => (
               <NavLink key={to} to={to} className={({ isActive }) => `text-xs font-bold tracking-[.12em] ${isActive ? 'text-clay' : 'hover:text-clay'}`}>
@@ -359,7 +360,7 @@ export function Header() {
         <div className="fixed inset-0 z-[90] bg-black/50">
           <div className="h-full w-[88%] max-w-sm overflow-auto bg-bone p-6">
             <div className="mb-10 flex justify-between">
-              <Logo />
+              <Logo src={settings?.headerLogoUrl} />
               <button type="button" onClick={() => setMenu(false)} aria-label="Close menu">
                 <X />
               </button>
@@ -412,7 +413,7 @@ export function Footer() {
     <footer className="bg-ink text-white">
       <div className="container-site grid gap-10 py-16 md:grid-cols-2 lg:grid-cols-4">
         <div>
-          <Logo light />
+          <Logo light src={settings?.footerLogoUrl} />
           <p className="mt-5 max-w-xs text-sm leading-7 text-white/60">Durable bags made for everyday life, travel and adventure.</p>
           <div className="mt-5 flex gap-4 text-xs font-bold tracking-widest">
             <a href={settings?.social[0]?.href} className="hover:text-khaki">
