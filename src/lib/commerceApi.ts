@@ -1,5 +1,6 @@
 import type { BulkOrder, Inquiry, Profile } from '../types'
-import { getSupabase, isSupabaseConfigured } from './supabase'
+import { ensureProfile, profileFromUser } from './authProfile'
+import { getSiteUrl, getSupabase, isSupabaseConfigured } from './supabase'
 
 const cmsUrl = String(import.meta.env.VITE_CMS_URL ?? '').replace(/\/$/, '')
 
@@ -18,6 +19,10 @@ export interface AuthSession {
   profile: Profile
   token?: string
 }
+
+export type RegisterResult =
+  | { needsEmailConfirmation: false; session: AuthSession }
+  | { needsEmailConfirmation: true }
 
 const SESSION_KEY = 'kamaru-auth-v1'
 
@@ -45,13 +50,15 @@ export const commerceApi = {
     gender?: string
     city?: string
     province?: string
-  }): Promise<AuthSession> {
+  }): Promise<RegisterResult> {
     if (isSupabaseConfigured) {
       const supabase = getSupabase()!
+      const site = getSiteUrl()
       const { data, error } = await supabase.auth.signUp({
         email: input.email,
         password: input.password,
         options: {
+          emailRedirectTo: `${site}/auth/confirm`,
           data: {
             full_name: input.fullName,
             phone: input.phone,
@@ -64,39 +71,20 @@ export const commerceApi = {
       })
       if (error) throw error
       if (!data.user) throw new Error('Registration failed.')
-      const profile: Profile = {
-        id: data.user.id,
-        email: input.email,
-        fullName: input.fullName,
-        phone: input.phone,
-        ageRange: input.ageRange,
-        gender: input.gender,
-        city: input.city,
-        province: input.province,
-        role: 'customer',
-        createdAt: new Date().toISOString(),
+      if (!data.session) {
+        return { needsEmailConfirmation: true }
       }
-      await supabase.from('profiles').upsert({
-        id: profile.id,
-        email: profile.email,
-        full_name: profile.fullName,
-        phone: profile.phone,
-        age_range: profile.ageRange,
-        gender: profile.gender,
-        city: profile.city,
-        province: profile.province,
-        role: 'customer',
-      })
-      const session = { userId: profile.id, profile }
+      const profile = await ensureProfile(data.user)
+      const session: AuthSession = { userId: profile.id, profile, token: data.session.access_token }
       saveStoredSession(session)
-      return session
+      return { needsEmailConfirmation: false, session }
     }
     const session = await localRequest<AuthSession>('/api/public/auth/register', {
       method: 'POST',
       body: JSON.stringify(input),
     })
     saveStoredSession(session)
-    return session
+    return { needsEmailConfirmation: false, session }
   },
 
   async login(email: string, password: string): Promise<AuthSession> {
@@ -105,20 +93,8 @@ export const commerceApi = {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
       if (!data.user) throw new Error('Login failed.')
-      const { data: row } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
-      const profile: Profile = {
-        id: data.user.id,
-        email: row?.email ?? email,
-        fullName: row?.full_name ?? data.user.user_metadata?.full_name ?? 'Member',
-        phone: row?.phone,
-        ageRange: row?.age_range,
-        gender: row?.gender,
-        city: row?.city,
-        province: row?.province,
-        role: row?.role ?? 'customer',
-        createdAt: row?.created_at ?? new Date().toISOString(),
-        lastActiveAt: new Date().toISOString(),
-      }
+      const { data: row } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle()
+      const profile = profileFromUser(data.user, row)
       const session = { userId: profile.id, profile, token: data.session?.access_token }
       saveStoredSession(session)
       return session
@@ -138,7 +114,7 @@ export const commerceApi = {
 
   async requestPasswordReset(email: string): Promise<{ devResetToken?: string }> {
     if (isSupabaseConfigured) {
-      const redirectTo = `${window.location.origin}/reset-password`
+      const redirectTo = `${getSiteUrl()}/reset-password`
       const { error } = await getSupabase()!.auth.resetPasswordForEmail(email, { redirectTo })
       if (error) throw error
       return {}
@@ -149,10 +125,40 @@ export const commerceApi = {
     })
   },
 
+  async completeAuthRedirect(): Promise<AuthSession | null> {
+    if (!isSupabaseConfigured) return null
+    const supabase = getSupabase()!
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      if (error) throw error
+    }
+    const { data, error } = await supabase.auth.getSession()
+    if (error) throw error
+    if (!data.session?.user) return null
+    const profile = await ensureProfile(data.session.user)
+    const session: AuthSession = {
+      userId: profile.id,
+      profile,
+      token: data.session.access_token,
+    }
+    saveStoredSession(session)
+    return session
+  },
+
   async resetPassword(token: string, password: string) {
     if (isSupabaseConfigured) {
-      const { error } = await getSupabase()!.auth.updateUser({ password })
+      const { data, error } = await getSupabase()!.auth.updateUser({ password })
       if (error) throw error
+      if (data.user) {
+        const profile = await ensureProfile(data.user)
+        saveStoredSession({
+          userId: profile.id,
+          profile,
+          token: (await getSupabase()!.auth.getSession()).data.session?.access_token,
+        })
+      }
       return
     }
     await localRequest('/api/public/auth/reset', {

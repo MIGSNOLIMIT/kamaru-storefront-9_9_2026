@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Profile } from '../types'
-import { commerceApi, loadStoredSession, type AuthSession } from '../lib/commerceApi'
+import { ensureProfile } from '../lib/authProfile'
+import { commerceApi, loadStoredSession, saveStoredSession, type AuthSession } from '../lib/commerceApi'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 
 interface AuthValue {
@@ -17,49 +18,78 @@ interface AuthValue {
     gender?: string
     city?: string
     province?: string
-  }) => Promise<void>
+  }) => Promise<{ needsEmailConfirmation: boolean }>
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
+
+async function sessionFromSupabaseUser(accessToken?: string): Promise<AuthSession | null> {
+  const supabase = getSupabase()
+  if (!supabase) return null
+  const { data } = await supabase.auth.getSession()
+  const user = data.session?.user
+  if (!user) return null
+  const profile = await ensureProfile(user)
+  return {
+    userId: profile.id,
+    profile,
+    token: accessToken ?? data.session?.access_token,
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(() => loadStoredSession())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false)
+      return
+    }
+
+    const supabase = getSupabase()!
     let active = true
-    async function hydrate() {
-      if (isSupabaseConfigured) {
-        const supabase = getSupabase()!
-        const { data } = await supabase.auth.getSession()
-        if (!active) return
-        if (data.session?.user) {
-          const { data: row } = await supabase.from('profiles').select('*').eq('id', data.session.user.id).single()
-          if (row) {
-            const profile: Profile = {
-              id: row.id,
-              email: row.email,
-              fullName: row.full_name,
-              phone: row.phone ?? undefined,
-              ageRange: row.age_range ?? undefined,
-              gender: row.gender ?? undefined,
-              city: row.city ?? undefined,
-              province: row.province ?? undefined,
-              role: row.role,
-              createdAt: row.created_at,
-              lastActiveAt: row.last_active_at ?? undefined,
-            }
-            setSession({ userId: profile.id, profile, token: data.session.access_token })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, authSession) => {
+      if (!active) return
+      if (authSession?.user) {
+        try {
+          const next = await sessionFromSupabaseUser(authSession.access_token)
+          if (next) {
+            saveStoredSession(next)
+            setSession(next)
           }
-        } else {
+        } catch {
+          saveStoredSession(null)
           setSession(null)
         }
+      } else {
+        saveStoredSession(null)
+        setSession(null)
       }
-      if (active) setLoading(false)
+    })
+
+    void (async () => {
+      try {
+        const next = await sessionFromSupabaseUser()
+        if (!active) return
+        if (next) {
+          saveStoredSession(next)
+          setSession(next)
+        } else {
+          saveStoredSession(null)
+          setSession(null)
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
+    })()
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
     }
-    void hydrate()
-    return () => { active = false }
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
@@ -68,8 +98,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const register = useCallback(async (input: Parameters<AuthValue['register']>[0]) => {
-    const next = await commerceApi.register(input)
-    setSession(next)
+    const result = await commerceApi.register(input)
+    if (result.needsEmailConfirmation) {
+      return { needsEmailConfirmation: true }
+    }
+    setSession(result.session)
+    return { needsEmailConfirmation: false }
   }, [])
 
   const logout = useCallback(async () => {

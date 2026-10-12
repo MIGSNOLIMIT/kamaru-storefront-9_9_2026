@@ -12,6 +12,7 @@ const Shop = lazy(() => import('./pages/Shop'))
 const ProductPage = lazy(() => import('./pages/ProductPage'))
 const Checkout = lazy(() => import('./pages/Checkout'))
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const AuthConfirm = lazy(() => import('./pages/AuthConfirm'))
 const content = import('./pages/ContentPages')
 const legal = import('./pages/LegalPages')
 const About = lazy(() => content.then(m => ({ default: m.About })))
@@ -58,6 +59,7 @@ function AppRoutes() {
           <Route path="checkout" element={<Checkout />} />
           <Route path="wishlist" element={<Wishlist />} />
           <Route path="account" element={<Account />} />
+          <Route path="auth/confirm" element={<AuthConfirm />} />
           <Route path="reset-password" element={<ResetPassword />} />
           <Route path="privacy-policy" element={<Privacy />} />
           <Route path="terms-and-conditions" element={<Terms />} />

@@ -198,6 +198,7 @@ export function Account() {
   const { tr } = useLanguage()
   const [orders, setOrders] = useState<BulkOrder[]>([])
   const [error, setError] = useState('')
+  const [confirmEmailSent, setConfirmEmailSent] = useState(false)
   const [busy, setBusy] = useState(false)
   const next = params.get('next') ?? '/shop'
 
@@ -244,7 +245,7 @@ export function Account() {
     try {
       if (tab === 'login') await login(email, password)
       else {
-        await register({
+        const { needsEmailConfirmation } = await register({
           email,
           password,
           fullName: String(form.get('fullName')),
@@ -254,6 +255,10 @@ export function Account() {
           city: String(form.get('city') || '') || undefined,
           province: String(form.get('province') || '') || undefined,
         })
+        if (needsEmailConfirmation) {
+          setConfirmEmailSent(true)
+          return
+        }
       }
       navigate(next)
     } catch (err) {
@@ -271,6 +276,11 @@ export function Account() {
         <h1 className="mt-3 text-4xl font-extrabold">{tab === 'login' ? 'WELCOME BACK' : 'JOIN KAMARU'}</h1>
         <p className="mt-3 text-sm text-ink/55">{tr('bulkSignUp')}</p>
         {error && <p className="mt-4 text-sm text-clay">{error}</p>}
+        {confirmEmailSent && (
+          <p className="mt-4 text-sm text-olive">
+            We sent a confirmation link to your email. Open it to activate your account, then sign in here.
+          </p>
+        )}
         <form onSubmit={(e) => void submit(e)} className="mt-7 space-y-4">
           {tab === 'register' && (
             <>
