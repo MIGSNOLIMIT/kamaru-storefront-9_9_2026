@@ -108,8 +108,11 @@ export const commerceApi = {
   },
 
   async logout() {
-    if (isSupabaseConfigured) await getSupabase()?.auth.signOut()
     saveStoredSession(null)
+    if (isSupabaseConfigured) {
+      // Do not await signOut here — it can block if an auth listener is still running.
+      void getSupabase()?.auth.signOut()
+    }
   },
 
   async requestPasswordReset(email: string): Promise<{ devResetToken?: string }> {

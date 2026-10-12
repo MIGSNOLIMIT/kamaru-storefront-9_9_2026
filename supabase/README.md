@@ -38,7 +38,10 @@ VITE_SITE_URL=https://your-production-domain.com
    Keep the `{{ .ConfirmationURL }}` link placeholders exactly as Supabase expects.
 
 8. Seed catalog rows from the current CMS export or run the app locally with JSON until migration scripts are added.
-9. Promote staff users by setting `profiles.role` to `admin`, `content`, or `orders`.
+9. Run `migrations/003_super_admin_role.sql`, then promote staff in the SQL editor:
+
+   - **Super admin** (can edit GCash, bank, and QR in CMS): `update profiles set role = 'super_admin' where email = 'you@example.com';`
+   - **Editors** (catalog, orders, content — payment details are view-only): `admin`, `content`, or `orders`
 
 **Server-only** (never expose in the browser): `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from Project Settings → API Keys → `service_role`.
 

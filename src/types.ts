@@ -1,7 +1,7 @@
 export type ContentStatus = 'published' | 'draft'
 export type DataQuality = 'verified' | 'placeholder'
 export type ProductMaterial = 'polyester' | 'nylon-420-hd' | 'kipling'
-export type UserRole = 'customer' | 'content' | 'orders' | 'admin'
+export type UserRole = 'customer' | 'content' | 'orders' | 'admin' | 'super_admin'
 export type PaymentMethod = 'qr' | 'bank_transfer' | 'pickup'
 export type FulfillmentMethod = 'lbc' | 'lalamove' | 'pickup'
 export type OrderStatus =
@@ -129,6 +129,8 @@ export interface SiteSettings {
   address: string
   social: { label: string; href: string }[]
   inquiryEmail: string
+  gcashNumber?: string
+  gcashAccountName?: string
   qrImageUrl?: string
   bankDetails?: BankDetails
   marketplaceStores: MarketplaceLinks

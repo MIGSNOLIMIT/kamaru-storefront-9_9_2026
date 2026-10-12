@@ -4,6 +4,7 @@ import path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { requireStaff } from './commerce-routes.ts'
+import { mergeSettingsForStaffRole } from './staff-roles.ts'
 import {
   catalogStats,
   colorInUse,
@@ -348,7 +349,10 @@ export async function handleCmsApi(req: IncomingMessage, res: ServerResponse) {
       return send(res, 200, data.homeSections)
     }
     if (method === 'PUT' && pathname === '/api/admin/settings') {
-      data.siteSettings = await parseBody<SiteSettings>(req)
+      const staff = requireStaff(req)
+      if (!staff) return send(res, 401, { error: 'Unauthorized' })
+      const body = await parseBody<SiteSettings>(req)
+      data.siteSettings = mergeSettingsForStaffRole(body, data.siteSettings, staff.profile.role)
       await persist(data)
       return send(res, 200, data.siteSettings)
     }

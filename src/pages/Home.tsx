@@ -113,4 +113,21 @@ function Newsletter() {
 }
 
 const registry: Record<HomeSection['type'], React.ComponentType> = { hero:Hero, benefits:Benefits, categories:FeaturedCategories, 'new-arrivals':NewArrivals, editorial:Editorial, 'water-resistant':WaterResistant, story:Story, 'best-sellers':BestSellers, lifestyle:Lifestyle, journal:Journal, newsletter:Newsletter }
-export default function Home() { const {data}=useHomeSections(); return <>{data.map((section)=>{const Component=registry[section.type];return <Component key={section.id}/>})}</> }
+export default function Home() {
+  const { data, loading } = useHomeSections()
+  if (loading && !data.length) {
+    return (
+      <div className="grid min-h-[60vh] place-items-center text-xs font-bold tracking-[.2em] text-ink/45">
+        LOADING KAMARU
+      </div>
+    )
+  }
+  return (
+    <>
+      {data.map((section) => {
+        const Component = registry[section.type]
+        return <Component key={section.id} />
+      })}
+    </>
+  )
+}

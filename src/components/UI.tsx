@@ -8,8 +8,17 @@ export function Button({ className, variant = 'solid', ...props }: ButtonHTMLAtt
   return <button className={twMerge('min-h-11 px-5 py-3 text-xs font-bold tracking-[.16em] uppercase transition disabled:cursor-not-allowed disabled:opacity-50', variant === 'solid' && 'bg-clay text-white hover:bg-[#c2410c]', variant === 'outline' && 'border border-ink bg-transparent hover:bg-ink hover:text-white', variant === 'light' && 'bg-bone text-ink hover:bg-white', variant === 'ghost' && 'text-ink/60 hover:text-clay', className)} {...props} />
 }
 
-export function Media({ image, className = '', eager = false }: { image: ImageRef; className?: string; eager?: boolean }) {
+export function Media({ image, className = '', eager = false, compact = false }: { image: ImageRef; className?: string; eager?: boolean; compact?: boolean }) {
   if (image.src) return <img src={image.src} alt={image.alt} width={image.width} height={image.height} loading={eager ? 'eager' : 'lazy'} decoding="async" className={twMerge('h-full w-full object-cover', className)} />
+  if (compact) {
+    return (
+      <div
+        role="img"
+        aria-label={image.alt}
+        className={twMerge('h-full w-full bg-white/10', className)}
+      />
+    )
+  }
   const hue = [...image.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 25
   return (
     <div role="img" aria-label={`${image.alt} — image pending`} className={twMerge('relative flex h-full min-h-52 w-full items-center justify-center overflow-hidden bg-ink text-bone', className)}

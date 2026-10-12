@@ -267,9 +267,9 @@ export async function handleCommerceRoutes(
 }
 
 export function staffCanManageOrders(role: UserRole) {
-  return role === 'admin' || role === 'orders'
+  return role === 'super_admin' || role === 'admin' || role === 'orders'
 }
 
 export function staffCanManageContent(role: UserRole) {
-  return role === 'admin' || role === 'content'
+  return role === 'super_admin' || role === 'admin' || role === 'content'
 }

@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { BulkOrder, Inquiry, Profile, UserRole } from '../src/types.ts'
+import { isStaffRole as checkStaffRole } from './staff-roles.ts'
 
 export interface StoredUser {
   id: string
@@ -39,7 +40,7 @@ function staffUser(email: string, password: string, fullName: string, role: User
 function emptyCommerce(): CommerceStore {
   return {
     users: [
-      staffUser('admin@kamaru.local', 'kamaru-admin', 'Kamaru Admin'),
+      staffUser('admin@kamaru.local', 'kamaru-admin', 'Kamaru Admin', 'super_admin'),
       staffUser('migsnolimit26@gmail.com', 'Kamaru-Migs-2026', 'Migs'),
     ],
     orders: [],
@@ -54,8 +55,13 @@ function ensureStaffUsers(data: CommerceStore) {
   ]
   let changed = false
   for (const person of required) {
-    if (!data.users.some((user) => user.email.toLowerCase() === person.email)) {
-      data.users.push(staffUser(person.email, person.password, person.fullName))
+    const existing = data.users.find((user) => user.email.toLowerCase() === person.email)
+    if (!existing) {
+      const role = person.email === 'admin@kamaru.local' ? 'super_admin' : 'admin'
+      data.users.push(staffUser(person.email, person.password, person.fullName, role))
+      changed = true
+    } else if (person.email === 'admin@kamaru.local' && existing.profile.role !== 'super_admin') {
+      existing.profile.role = 'super_admin'
       changed = true
     }
   }
@@ -83,5 +89,5 @@ export function saveCommerce(data: CommerceStore) {
 }
 
 export function isStaffRole(role: UserRole) {
-  return role === 'admin' || role === 'content' || role === 'orders'
+  return checkStaffRole(role)
 }

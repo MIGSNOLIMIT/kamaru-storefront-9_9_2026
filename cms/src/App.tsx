@@ -68,6 +68,7 @@ function Shell() {
           <p className="font-display text-xl font-extrabold tracking-[.18em]">KAMARU</p>
           <p className="mt-1 text-[10px] font-bold tracking-[.22em] text-khaki">CUSTOM CMS</p>
           <p className="mt-3 text-xs text-white/50">{staff.fullName}</p>
+          <p className="text-[10px] font-bold tracking-widest text-khaki">{staff.role === 'super_admin' ? 'SUPER ADMIN' : 'EDITOR'}</p>
           <nav className="mt-8 space-y-1">
             <NavLinks />
           </nav>

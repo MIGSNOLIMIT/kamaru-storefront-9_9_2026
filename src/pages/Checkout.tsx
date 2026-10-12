@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { Breadcrumbs, Button, Media } from '../components/UI'
 import { formatPrice } from '../components/Product'
@@ -8,10 +8,64 @@ import { useStore } from '../state/StoreContext'
 import { useLanguage } from '../state/LanguageContext'
 import { commerceApi } from '../lib/commerceApi'
 import { trackEvent } from '../lib/analytics'
-import type { FulfillmentMethod, PaymentMethod } from '../types'
+import { gcashQrDataUrl } from '../lib/gcashQr'
+import type { FulfillmentMethod, PaymentMethod, SiteSettings } from '../types'
 import { Seo } from '../components/Seo'
 
 const fieldClass = 'min-h-12 w-full border border-ink/20 px-4 font-normal tracking-normal'
+
+function GcashPaymentBlock({ settings }: { settings: SiteSettings }) {
+  const [generatedQr, setGeneratedQr] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (settings.qrImageUrl || !settings.gcashNumber?.trim()) {
+      setGeneratedQr(null)
+      return
+    }
+    let cancelled = false
+    void gcashQrDataUrl(settings.gcashNumber)
+      .then((url) => {
+        if (!cancelled) setGeneratedQr(url)
+      })
+      .catch(() => {
+        if (!cancelled) setGeneratedQr(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [settings.gcashNumber, settings.qrImageUrl])
+
+  const qrSrc = settings.qrImageUrl ?? generatedQr
+
+  return (
+    <div className="space-y-3 text-center text-sm">
+      {qrSrc ? (
+        <img src={qrSrc} alt="GCash payment QR" className="mx-auto max-h-52 w-52 max-w-full rounded border border-ink/10 bg-white p-2" />
+      ) : (
+        <p className="text-ink/55">GCash QR will appear once a GCash number is configured in CMS.</p>
+      )}
+      {(settings.gcashAccountName || settings.gcashNumber) && (
+        <dl className="text-left">
+          {settings.gcashAccountName ? (
+            <>
+              <dt className="font-bold">GCash account name</dt>
+              <dd>{settings.gcashAccountName}</dd>
+            </>
+          ) : null}
+          {settings.gcashNumber ? (
+            <>
+              <dt className="mt-2 font-bold">GCash mobile number</dt>
+              <dd>{settings.gcashNumber}</dd>
+            </>
+          ) : null}
+        </dl>
+      )}
+      {!settings.qrImageUrl && settings.gcashNumber ? (
+        <p className="text-xs text-ink/45">Scan to send to this GCash number. For official merchant QR, upload an image in CMS (Super admin).</p>
+      ) : null}
+    </div>
+  )
+}
 
 export default function Checkout() {
   const { user, isAuthenticated } = useAuth()
@@ -102,8 +156,8 @@ export default function Checkout() {
       <h1 className="my-8 text-4xl font-extrabold md:text-5xl">BULK CHECKOUT</h1>
       {moq ? <p className="mb-6 text-sm text-ink/60">Minimum {moq} units per product line.</p> : null}
       {error && <p className="mb-6 border border-clay/30 bg-clay/5 p-4 text-sm text-clay">{error}</p>}
-      <form onSubmit={(e) => void submit(e)} className="grid gap-10 lg:grid-cols-[1fr_380px]">
-        <div className="space-y-6 bg-white p-6 md:p-8">
+      <form onSubmit={(e) => void submit(e)} className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
+        <div className="min-w-0 space-y-6 bg-white p-6 md:p-8">
           <Field label="Company name (optional)"><input className={fieldClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} /></Field>
           <Field label="Delivery address">
             <textarea className={fieldClass} rows={3} required={fulfillmentMethod !== 'pickup'} value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} disabled={fulfillmentMethod === 'pickup'} />
@@ -125,9 +179,7 @@ export default function Checkout() {
           </Field>
           {paymentMethod !== 'pickup' && (
             <div className="space-y-4 border border-ink/10 p-4">
-              {settings?.qrImageUrl && paymentMethod === 'qr' && (
-                <img src={settings.qrImageUrl} alt="Kamaru QR payment" className="mx-auto max-h-48" />
-              )}
+              {paymentMethod === 'qr' && settings ? <GcashPaymentBlock settings={settings} /> : null}
               {settings?.bankDetails && paymentMethod === 'bank_transfer' && (
                 <dl className="text-sm">
                   <dt className="font-bold">Bank</dt><dd>{settings.bankDetails.bankName}</dd>
@@ -142,24 +194,27 @@ export default function Checkout() {
             </div>
           )}
         </div>
-        <aside className="h-fit bg-ink p-6 text-white">
+        <aside className="h-fit min-w-0 overflow-hidden rounded-sm bg-ink p-6 text-white lg:sticky lg:top-24">
           <h2 className="text-xl font-extrabold">{tr('bulkCartTitle')}</h2>
-          <div className="mt-5 space-y-4">
+          <ul className="mt-5 space-y-4">
             {cart.map((line) => (
-              <div key={`${line.product.id}-${line.colorId}`} className="flex gap-3">
-                <div className="h-16 w-14 shrink-0"><Media image={line.product.images[0]} /></div>
-                <div className="min-w-0 flex-1 text-sm">
-                  <p className="font-bold">{line.product.name}</p>
-                  <p className="text-white/55">Qty {line.quantity}</p>
-                  <p>{formatPrice(line.product.price * line.quantity)}</p>
+              <li key={`${line.product.id}-${line.colorId}`} className="flex gap-3">
+                <div className="h-16 w-14 shrink-0 overflow-hidden rounded-sm bg-white/10">
+                  <Media compact image={line.product.images[0]} className="h-full w-full" />
                 </div>
-              </div>
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="truncate font-bold">{line.product.name}</p>
+                  <p className="text-white/55">Qty {line.quantity}</p>
+                  <p className="font-semibold">{formatPrice(line.product.price * line.quantity)}</p>
+                </div>
+              </li>
             ))}
+          </ul>
+          <div className="mt-6 flex justify-between border-t border-white/15 pt-4 text-sm font-bold">
+            <span>Subtotal</span>
+            <span>{formatPrice(subtotal)}</span>
           </div>
-          <div className="mt-6 flex justify-between border-t border-white/15 pt-4 font-bold">
-            <span>Subtotal</span><span>{formatPrice(subtotal)}</span>
-          </div>
-          <Button type="submit" className="mt-6 w-full" disabled={busy}>{busy ? 'Submitting…' : tr('checkout')}</Button>
+          <Button type="submit" className="mt-6 w-full" disabled={busy}>{busy ? 'Submitting…' : 'Submit bulk order'}</Button>
         </aside>
       </form>
     </div>

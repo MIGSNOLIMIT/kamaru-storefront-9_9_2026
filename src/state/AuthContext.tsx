@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import type { Session } from '@supabase/supabase-js'
 import type { Profile } from '../types'
 import { ensureProfile } from '../lib/authProfile'
 import { commerceApi, loadStoredSession, saveStoredSession, type AuthSession } from '../lib/commerceApi'
@@ -24,23 +25,21 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null)
 
-async function sessionFromSupabaseUser(accessToken?: string): Promise<AuthSession | null> {
-  const supabase = getSupabase()
-  if (!supabase) return null
-  const { data } = await supabase.auth.getSession()
-  const user = data.session?.user
+async function sessionFromAuthSession(authSession: Session): Promise<AuthSession | null> {
+  const user = authSession.user
   if (!user) return null
   const profile = await ensureProfile(user)
   return {
     userId: profile.id,
     profile,
-    token: accessToken ?? data.session?.access_token,
+    token: authSession.access_token,
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(() => loadStoredSession())
   const [loading, setLoading] = useState(true)
+  const authGeneration = useRef(0)
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -51,35 +50,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabase()!
     let active = true
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, authSession) => {
+    const applySignedOut = () => {
+      saveStoredSession(null)
+      setSession(null)
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, authSession) => {
       if (!active) return
-      if (authSession?.user) {
-        try {
-          const next = await sessionFromSupabaseUser(authSession.access_token)
-          if (next) {
+      const generation = ++authGeneration.current
+
+      if (!authSession?.user) {
+        applySignedOut()
+        return
+      }
+
+      // Never call getSession() inside this callback — it deadlocks Supabase's auth lock.
+      window.setTimeout(() => {
+        if (!active || generation !== authGeneration.current) return
+        void sessionFromAuthSession(authSession)
+          .then((next) => {
+            if (!active || generation !== authGeneration.current || !next) return
             saveStoredSession(next)
             setSession(next)
-          }
-        } catch {
-          saveStoredSession(null)
-          setSession(null)
-        }
-      } else {
-        saveStoredSession(null)
-        setSession(null)
-      }
+          })
+          .catch(() => {
+            if (!active || generation !== authGeneration.current) return
+            applySignedOut()
+          })
+      }, 0)
     })
 
     void (async () => {
       try {
-        const next = await sessionFromSupabaseUser()
+        const { data } = await supabase.auth.getSession()
         if (!active) return
-        if (next) {
-          saveStoredSession(next)
-          setSession(next)
+        if (data.session) {
+          const next = await sessionFromAuthSession(data.session)
+          if (next) {
+            saveStoredSession(next)
+            setSession(next)
+          } else {
+            applySignedOut()
+          }
         } else {
-          saveStoredSession(null)
-          setSession(null)
+          applySignedOut()
         }
       } finally {
         if (active) setLoading(false)
@@ -107,8 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(async () => {
-    await commerceApi.logout()
+    authGeneration.current += 1
+    saveStoredSession(null)
     setSession(null)
+    await commerceApi.logout()
   }, [])
 
   const value = useMemo<AuthValue>(() => ({
