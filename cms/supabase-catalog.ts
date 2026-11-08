@@ -40,6 +40,16 @@ function markRemoteDown(error: unknown) {
   console.warn('[catalog] Supabase is unreachable, using local JSON:', errorText(error))
 }
 
+export function isSupabaseTemporarilyDown() {
+  return remoteRecentlyDown()
+}
+
+export function noteSupabaseUnavailable(error: unknown) {
+  if (!isRemoteUnavailable(error)) return false
+  markRemoteDown(error)
+  return true
+}
+
 export function getSupabaseAdmin(): SupabaseClient | null {
   const { url, serviceKey, configured } = supabaseServiceConfig()
   if (!configured) return null

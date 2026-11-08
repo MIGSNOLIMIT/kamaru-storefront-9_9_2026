@@ -18,13 +18,28 @@ export interface StoredUser {
   seedKey?: string
 }
 
+export interface EmailChange {
+  token: string
+  userId: string
+  email: string
+  expires: string
+}
+
 export interface CommerceStore {
   users: StoredUser[]
   orders: BulkOrder[]
   inquiries: Inquiry[]
   /** Seeded accounts a Super admin deleted. Startup will not recreate these. */
   removedSeedKeys?: string[]
+  /** In-app email confirmation, including accounts that live in Supabase Auth. */
+  emailChanges?: EmailChange[]
 }
+
+export const STAFF_SEEDS: { email: string; password: string; fullName: string; role: UserRole; seedKey: string }[] = [
+  { email: 'admin@kamaru.local', password: 'kamaru-admin', fullName: 'Kamaru Admin', role: 'super_admin', seedKey: 'local-admin' },
+  { email: 'migsnolimit23@gmail.com', password: 'Kamaru-Super-2026', fullName: 'Migs', role: 'super_admin', seedKey: 'migs-23' },
+  { email: 'migsnolimit26@gmail.com', password: 'Kamaru-Migs-2026', fullName: 'Migs', role: 'admin', seedKey: 'migs-26' },
+]
 
 const dataDir = path.join(import.meta.dirname, 'data')
 const commerceFile = path.join(dataDir, 'commerce.json')
@@ -51,25 +66,16 @@ function staffUser(email: string, password: string, fullName: string, role: User
 
 function emptyCommerce(): CommerceStore {
   return {
-    users: [
-      staffUser('admin@kamaru.local', 'kamaru-admin', 'Kamaru Admin', 'super_admin', 'local-admin'),
-      staffUser('migsnolimit23@gmail.com', 'Kamaru-Super-2026', 'Migs', 'super_admin', 'migs-23'),
-      staffUser('migsnolimit26@gmail.com', 'Kamaru-Migs-2026', 'Migs', 'admin', 'migs-26'),
-    ],
+    users: STAFF_SEEDS.map((person) => staffUser(person.email, person.password, person.fullName, person.role, person.seedKey)),
     orders: [],
     inquiries: [],
   }
 }
 
 function ensureStaffUsers(data: CommerceStore) {
-  const required: { email: string; password: string; fullName: string; role: UserRole; seedKey: string }[] = [
-    { email: 'admin@kamaru.local', password: 'kamaru-admin', fullName: 'Kamaru Admin', role: 'super_admin', seedKey: 'local-admin' },
-    { email: 'migsnolimit23@gmail.com', password: 'Kamaru-Super-2026', fullName: 'Migs', role: 'super_admin', seedKey: 'migs-23' },
-    { email: 'migsnolimit26@gmail.com', password: 'Kamaru-Migs-2026', fullName: 'Migs', role: 'admin', seedKey: 'migs-26' },
-  ]
   const removed = new Set(data.removedSeedKeys ?? [])
   let changed = false
-  for (const person of required) {
+  for (const person of STAFF_SEEDS) {
     if (removed.has(person.seedKey)) continue
     const existing = data.users.find((user) => user.seedKey === person.seedKey)
       ?? data.users.find((user) => !user.seedKey && user.email.toLowerCase() === person.email.toLowerCase())
@@ -108,6 +114,20 @@ export function loadCommerce(): CommerceStore {
 export function saveCommerce(data: CommerceStore) {
   mkdirSync(dataDir, { recursive: true })
   writeFileSync(commerceFile, JSON.stringify(data, null, 2))
+}
+
+let commerceQueue: Promise<unknown> = Promise.resolve()
+
+/** Read, change, and write the local store one request at a time so a second save cannot drop the first. */
+export function updateCommerce<T>(mutate: (data: CommerceStore) => T): Promise<T> {
+  const job = commerceQueue.then(() => {
+    const data = loadCommerce()
+    const result = mutate(data)
+    saveCommerce(data)
+    return result
+  })
+  commerceQueue = job.then(() => undefined, () => undefined)
+  return job
 }
 
 export function isStaffRole(role: UserRole) {

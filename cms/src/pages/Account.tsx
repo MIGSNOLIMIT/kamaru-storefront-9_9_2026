@@ -34,11 +34,29 @@ export function Account() {
     setName(staff?.fullName ?? '')
   }, [staff?.fullName])
 
-  const loadEditors = () => {
-    if (!token) return Promise.resolve()
-    return adminApi.staffList(token).then((rows) => {
-      setStaffRows(rows.filter((row) => row.role !== 'super_admin').map((row) => ({ ...row, password: '' })))
+  const applyEditors = (rows: { id: string; email: string; fullName: string; role: UserRole }[], keepCurrent: boolean) => {
+    const editors = rows.filter((row) => row.role !== 'super_admin')
+    setStaffRows((current) => {
+      const drafts = new Map(current.map((row) => [row.id, row]))
+      const merged = editors.map((row) => {
+        const draft = keepCurrent ? drafts.get(row.id) : undefined
+        return {
+          id: row.id,
+          role: row.role,
+          fullName: draft?.fullName ?? row.fullName,
+          email: draft?.email ?? row.email,
+          password: draft?.password ?? '',
+        }
+      })
+      if (!keepCurrent) return merged
+      const seen = new Set(merged.map((row) => row.id))
+      return [...merged, ...current.filter((row) => !seen.has(row.id))]
     })
+  }
+
+  const loadEditors = (keepCurrent = false) => {
+    if (!token) return Promise.resolve()
+    return adminApi.staffList(token).then((rows) => applyEditors(rows, keepCurrent))
   }
 
   useEffect(() => {
@@ -85,7 +103,7 @@ export function Account() {
       setEditorName('')
       setEditorEmail('')
       setEditorPassword('')
-      await loadEditors()
+      await loadEditors(true)
       setSaved('Editor added. They can sign in with that email and password.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add editor')
@@ -110,7 +128,7 @@ export function Account() {
         email: row.email,
         password: row.password || undefined,
       })
-      await loadEditors()
+      await loadEditors(true)
       setSaved('Editor saved.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save editor')
@@ -178,7 +196,7 @@ export function Account() {
         {isSuper && (
           <Card className="grid gap-4">
             <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">EDITORS</p>
-            <p className="text-xs text-ink/45">Add an editor, or change their name, email, and password. Leave the password blank to keep the current one.</p>
+            <p className="text-xs text-ink/45">Each editor is their own Supabase account. Add one here, or change a name, email, and password. Leave the password blank to keep the current one.</p>
             <form onSubmit={(e) => void addEditor(e)} className="grid gap-3 border border-ink/10 p-3">
               <Field label="Name"><Input value={editorName} onChange={(e) => setEditorName(e.target.value)} required /></Field>
               <Field label="Email"><Input type="email" value={editorEmail} onChange={(e) => setEditorEmail(e.target.value)} required /></Field>

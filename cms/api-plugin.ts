@@ -68,8 +68,8 @@ function match(pathname: string, pattern: string) {
   return Object.fromEntries(keys.map((key, i) => [key, decodeURIComponent(found[i + 1])]))
 }
 
-function staffOnly(req: IncomingMessage, res: ServerResponse) {
-  if (!requireStaff(req)) {
+async function staffOnly(req: IncomingMessage, res: ServerResponse) {
+  if (!await requireStaff(req)) {
     send(res, 401, { error: 'Unauthorized' })
     return false
   }
@@ -181,7 +181,7 @@ export async function handleCmsApi(req: IncomingMessage, res: ServerResponse) {
       pathname.startsWith('/api/admin/colors/') ||
       pathname.startsWith('/api/admin/media/')
 
-    if (isAdminCatalog && !staffOnly(req, res)) return true
+    if (isAdminCatalog && !(await staffOnly(req, res))) return true
 
     if (method === 'GET' && pathname === '/api/admin/snapshot') return send(res, 200, data)
 
@@ -349,7 +349,7 @@ export async function handleCmsApi(req: IncomingMessage, res: ServerResponse) {
       return send(res, 200, data.homeSections)
     }
     if (method === 'PUT' && pathname === '/api/admin/settings') {
-      const staff = requireStaff(req)
+      const staff = await requireStaff(req)
       if (!staff) return send(res, 401, { error: 'Unauthorized' })
       const body = await parseBody<SiteSettings>(req)
       data.siteSettings = mergeSettingsForStaffRole(body, data.siteSettings, staff.profile.role)
@@ -359,7 +359,7 @@ export async function handleCmsApi(req: IncomingMessage, res: ServerResponse) {
 
     const proofRoute = match(pathname, '/api/admin/orders/:id/payment-proof-url')
     if (proofRoute && method === 'GET') {
-      if (!requireStaff(req)) return send(res, 401, { error: 'Unauthorized' })
+      if (!await requireStaff(req)) return send(res, 401, { error: 'Unauthorized' })
       const { loadCommerce } = await import('./commerce-store.ts')
       const order = loadCommerce().orders.find((o) => o.id === proofRoute.id)
       if (!order?.paymentProofUrl) return send(res, 404, { error: 'No payment proof.' })

@@ -29,5 +29,6 @@ export function supabaseServiceConfig() {
   loadServerEnv()
   const url = String(process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim()
   const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim()
-  return { url, serviceKey, configured: Boolean(url && serviceKey) }
+  const anonKey = String(process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '').trim()
+  return { url, serviceKey, anonKey, configured: Boolean(url && serviceKey) }
 }
