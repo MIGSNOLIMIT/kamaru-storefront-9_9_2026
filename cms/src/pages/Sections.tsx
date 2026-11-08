@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { HomeSection, Product, SectionContent, SectionContentItem } from '../../../src/types'
 import { api, type Snapshot } from '../api'
 import { ImageField } from '../components/ImageField'
+import { useConfirm } from '../confirm'
 import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
 
 const allTypes: HomeSection['type'][] = ['hero', 'benefits', 'categories', 'new-arrivals', 'editorial', 'water-resistant', 'story', 'best-sellers', 'lifestyle', 'journal', 'newsletter']
@@ -140,10 +141,13 @@ function SectionContentEditor({
 }
 
 export function Sections() {
+  const confirm = useConfirm()
   const [sections, setSections] = useState<HomeSection[]>([])
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([])
   const [error, setError] = useState('')
   const [saved, setSaved] = useState('')
+  const [dirty, setDirty] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -153,15 +157,34 @@ export function Sections() {
     }).catch((e: Error) => setError(e.message))
   }, [])
 
-  const persist = async (next: HomeSection[]) => {
-    const ordered = next.map((section, sortOrder) => ({ ...section, sortOrder }))
-    setSections(ordered as HomeSection[])
+  const stage = (next: HomeSection[]) => {
+    setSections(next.map((section, sortOrder) => ({ ...section, sortOrder })) as HomeSection[])
+    setDirty(true)
+    setSaved('')
+  }
+
+  const saveAll = async () => {
+    if (!sections.length) {
+      setError('Keep at least one homepage section.')
+      return
+    }
+    const ok = await confirm({
+      title: 'Save homepage?',
+      message: 'This updates section order, visibility, and content on the storefront.',
+      confirmLabel: 'Save homepage',
+    })
+    if (!ok) return
+    setBusy(true)
     try {
-      await api.saveSections(ordered as HomeSection[])
+      await api.saveSections(sections)
+      setDirty(false)
       setSaved('Homepage saved. Refresh the storefront to see changes.')
       setError('')
+      setEditingId(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -170,26 +193,24 @@ export function Sections() {
     const swap = index + dir
     if (swap < 0 || swap >= next.length) return
     ;[next[index], next[swap]] = [next[swap], next[index]]
-    void persist(next)
+    stage(next)
   }
 
   const updateContent = (index: number, content: SectionContent) => {
     const next = sections.map((s, i) => (i === index ? { ...s, content } : s)) as HomeSection[]
-    setSections(next)
-  }
-
-  const saveSectionContent = () => {
-    void persist(sections)
-    setEditingId(null)
+    stage(next)
   }
 
   const unused = allTypes.filter((type) => !sections.some((section) => section.type === type))
 
   return (
     <div>
-      <PageHeader kicker="Storefront" title="Homepage sections" />
+      <PageHeader kicker="Storefront" title="Homepage sections">
+        <Button type="button" disabled={!dirty || busy} onClick={() => void saveAll()}>{busy ? 'Saving…' : 'Save homepage'}</Button>
+      </PageHeader>
       <p className="mb-6 max-w-2xl text-sm text-ink/60">
-        Reorder blocks, edit headlines and images, or remove a block to hide it. Add blocks back from the unused list below.
+        Reorder blocks and edit content, then save once. Removing a block hides it after you save.
+        {dirty ? ' You have unsaved changes.' : ''}
       </p>
       {error && <div className="mb-5"><Notice>{error}</Notice></div>}
       {saved && <p className="mb-5 text-sm text-olive">{saved}</p>}
@@ -207,13 +228,13 @@ export function Sections() {
                 <Button type="button" variant="outline" onClick={() => setEditingId(editingId === section.id ? null : section.id)}>
                   {editingId === section.id ? 'Close' : 'Edit content'}
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => void persist(sections.filter((s) => s.id !== section.id))}>Remove</Button>
+                <Button type="button" variant="ghost" onClick={() => stage(sections.filter((s) => s.id !== section.id))}>Remove</Button>
               </div>
             </div>
             {editingId === section.id && (
               <>
                 <SectionContentEditor section={section} products={catalogProducts} onChange={(content) => updateContent(index, content)} />
-                <Button type="button" className="mt-4" onClick={() => saveSectionContent()}>Save section content</Button>
+                <Button type="button" className="mt-4" variant="outline" onClick={() => setEditingId(null)}>Done editing</Button>
               </>
             )}
           </div>
@@ -224,7 +245,7 @@ export function Sections() {
           <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">UNUSED BLOCKS</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {unused.map((type) => (
-              <Button key={type} type="button" variant="outline" onClick={() => void persist([...sections, { id: type, type, sortOrder: sections.length } as HomeSection])}>
+              <Button key={type} type="button" variant="outline" onClick={() => stage([...sections, { id: type, type, sortOrder: sections.length } as HomeSection])}>
                 Add {type.replaceAll('-', ' ')}
               </Button>
             ))}

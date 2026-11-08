@@ -1,17 +1,55 @@
 import path from 'node:path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import ws from 'ws'
 import { supabaseServiceConfig } from './env-server.ts'
 import type { ContentStore } from './json-catalog.ts'
 import { loadJson, saveJson, seed } from './json-catalog.ts'
 import type { Article, Category, HomeSection, Product, SiteSettings } from '../src/types.ts'
 
 let client: SupabaseClient | null = null
+let remoteDownUntil = 0
+let remoteWarningShown = false
+
+const fetchWithTimeout: typeof fetch = (input, init) => {
+  const timeout = AbortSignal.timeout(5000)
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout
+  return fetch(input, { ...init, signal })
+}
+
+function errorText(error: unknown) {
+  if (!(error instanceof Error)) return String(error)
+  const cause = error.cause
+  const code = cause && typeof cause === 'object' && 'code' in cause ? String(cause.code) : ''
+  const causeMessage = cause && typeof cause === 'object' && 'message' in cause ? String(cause.message) : ''
+  return [error.message, code, causeMessage].filter(Boolean).join(': ')
+}
+
+function isRemoteUnavailable(error: unknown) {
+  return /ENOTFOUND|ECONNREFUSED|EAI_AGAIN|ETIMEDOUT|ENETUNREACH|ECONNRESET|fetch failed|TimeoutError|timed out/i.test(errorText(error))
+}
+
+function remoteRecentlyDown() {
+  return Date.now() < remoteDownUntil
+}
+
+function markRemoteDown(error: unknown) {
+  remoteDownUntil = Date.now() + 30_000
+  if (remoteWarningShown) return
+  remoteWarningShown = true
+  console.warn('[catalog] Supabase is unreachable, using local JSON:', errorText(error))
+}
 
 export function getSupabaseAdmin(): SupabaseClient | null {
   const { url, serviceKey, configured } = supabaseServiceConfig()
   if (!configured) return null
-  if (!client) client = createClient(url, serviceKey, { auth: { persistSession: false } })
+  if (!client) {
+    client = createClient(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      realtime: { transport: ws as never },
+      global: { fetch: fetchWithTimeout },
+    })
+  }
   return client
 }
 
@@ -241,19 +279,36 @@ async function seedSupabaseFromStore(data: ContentStore) {
 }
 
 export async function loadCatalog(): Promise<ContentStore> {
-  try {
-    const fromSb = await loadSupabaseSnapshot()
-    if (fromSb) return fromSb
-  } catch (e) {
-    console.warn('[catalog] Supabase load failed, using JSON:', e)
+  if (!remoteRecentlyDown()) {
+    try {
+      const fromSb = await loadSupabaseSnapshot()
+      if (fromSb) {
+        remoteDownUntil = 0
+        remoteWarningShown = false
+        return fromSb
+      }
+    } catch (e) {
+      if (isRemoteUnavailable(e)) markRemoteDown(e)
+      else console.warn('[catalog] Supabase load failed, using JSON:', e)
+    }
   }
   return loadJson()
 }
 
 export async function saveCatalog(data: ContentStore): Promise<void> {
-  const sb = getSupabaseAdmin()
-  if (sb) {
-    await saveSupabaseSnapshot(data)
+  if (!remoteRecentlyDown()) {
+    try {
+      const sb = getSupabaseAdmin()
+      if (sb) await saveSupabaseSnapshot(data)
+    } catch (error) {
+      saveJson(data)
+      if (isRemoteUnavailable(error)) {
+        markRemoteDown(error)
+        return
+      }
+      console.warn('[catalog] Supabase save failed, wrote local JSON:', error)
+      throw error
+    }
   }
   saveJson(data)
 }

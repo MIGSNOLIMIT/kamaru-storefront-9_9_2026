@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { AboutPageContent } from '../../../src/types'
 import { api } from '../api'
 import { ImageField } from '../components/ImageField'
+import { useConfirm } from '../confirm'
 import { Button, Card, Field, Input, Notice, PageHeader, Textarea } from '../ui'
 
 const defaultAbout = (): AboutPageContent => ({
@@ -22,6 +23,7 @@ const defaultAbout = (): AboutPageContent => ({
 })
 
 export function AboutPageEditor() {
+  const confirm = useConfirm()
   const [content, setContent] = useState<AboutPageContent>(defaultAbout())
   const [error, setError] = useState('')
   const [saved, setSaved] = useState('')
@@ -31,7 +33,16 @@ export function AboutPageEditor() {
     void api.getAbout().then((c) => c && setContent(c)).catch((e: Error) => setError(e.message))
   }, [])
 
+  const heroError = content.hero.title.trim() ? '' : 'Hero title is required.'
+  const storyError = content.story.title.trim() ? '' : 'Story title is required.'
   const save = async () => {
+    if (heroError || storyError) {
+      setError(heroError || storyError)
+      setSaved('')
+      return
+    }
+    const ok = await confirm({ title: 'Save about page?', message: 'This replaces the About page content on the storefront.', confirmLabel: 'Save' })
+    if (!ok) return
     setBusy(true)
     setError('')
     try {
@@ -47,17 +58,17 @@ export function AboutPageEditor() {
   return (
     <div>
       <PageHeader kicker="Storefront" title="About page">
-        <Button type="button" disabled={busy} onClick={() => void save()}>Save</Button>
+        <Button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Save'}</Button>
       </PageHeader>
       {error && <div className="mb-4"><Notice>{error}</Notice></div>}
       {saved && <p className="mb-4 text-sm text-olive">{saved}</p>}
       <Card className="mb-6 space-y-4">
         <Field label="Hero kicker"><Input value={content.hero.kicker} onChange={(e) => setContent({ ...content, hero: { ...content.hero, kicker: e.target.value } })} /></Field>
-        <Field label="Hero title"><Input value={content.hero.title} onChange={(e) => setContent({ ...content, hero: { ...content.hero, title: e.target.value } })} /></Field>
+        <Field label="Hero title" error={error ? heroError : ''}><Input value={content.hero.title} onChange={(e) => setContent({ ...content, hero: { ...content.hero, title: e.target.value } })} /></Field>
         <ImageField label="Hero image" image={content.hero.image} onChange={(image) => setContent({ ...content, hero: { ...content.hero, image } })} />
       </Card>
       <Card className="mb-6 space-y-4">
-        <Field label="Story title"><Input value={content.story.title} onChange={(e) => setContent({ ...content, story: { ...content.story, title: e.target.value } })} /></Field>
+        <Field label="Story title" error={error ? storyError : ''}><Input value={content.story.title} onChange={(e) => setContent({ ...content, story: { ...content.story, title: e.target.value } })} /></Field>
         <Field label="Story paragraphs (one per line)"><Textarea rows={6} value={content.story.paragraphs.join('\n')} onChange={(e) => setContent({ ...content, story: { ...content.story, paragraphs: e.target.value.split('\n').map((l) => l.trim()).filter(Boolean) } })} /></Field>
       </Card>
       <Card className="space-y-4">

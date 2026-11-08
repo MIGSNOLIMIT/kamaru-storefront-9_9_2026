@@ -10,9 +10,12 @@ const MATERIALS: { id: ProductMaterial; label: string }[] = [
 import { api, formatPrice, slugify, type Snapshot } from '../api'
 import { ColorPaletteEditor } from '../components/ColorPaletteEditor'
 import { ImageField } from '../components/ImageField'
+import { useConfirm } from '../confirm'
 import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
+import { isMoney, isSlug } from '../validate'
 
 export function ProductList() {
+  const confirm = useConfirm()
   const [data, setData] = useState<Snapshot | null>(null)
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
@@ -25,6 +28,8 @@ export function ProductList() {
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
   const publishSelected = async () => {
     if (!data || !selected.length) return
+    const ok = await confirm({ title: 'Publish products?', message: `Publish ${selected.length} selected product${selected.length === 1 ? '' : 's'}.`, confirmLabel: 'Publish' })
+    if (!ok) return
     for (const id of selected) {
       const p = data.products.find((x) => x.id === id)
       if (p) await api.saveProduct({ ...p, status: 'published' }, false)
@@ -33,7 +38,8 @@ export function ProductList() {
     setSelected([])
   }
   const deleteOne = async (product: Product) => {
-    if (!confirm(`Delete ${product.name}? This cannot be undone.`)) return
+    const ok = await confirm({ title: 'Delete product?', message: `Delete “${product.name}”. This cannot be undone.`, confirmLabel: 'Delete', tone: 'danger' })
+    if (!ok) return
     setError('')
     try {
       await api.deleteProduct(product.id)
@@ -44,7 +50,9 @@ export function ProductList() {
     }
   }
   const deleteSelected = async () => {
-    if (!selected.length || !confirm(`Delete ${selected.length} product(s)? This cannot be undone.`)) return
+    if (!selected.length) return
+    const ok = await confirm({ title: 'Delete products?', message: `Delete ${selected.length} product${selected.length === 1 ? '' : 's'}. This cannot be undone.`, confirmLabel: 'Delete', tone: 'danger' })
+    if (!ok) return
     setError('')
     const failures: string[] = []
     for (const id of selected) {
@@ -148,6 +156,7 @@ const blank = (sortOrder: number): Product => ({
 export function ProductEditor() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const isNew = !id
   const [data, setData] = useState<Snapshot | null>(null)
   const [product, setProduct] = useState<Product | null>(null)
@@ -174,8 +183,7 @@ export function ProductEditor() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [dirty])
 
-  if (error) return <Notice>{error}</Notice>
-  if (!data) return <p className="text-sm text-ink/50">Loading…</p>
+  if (!data) return error ? <Notice>{error}</Notice> : <p className="text-sm text-ink/50">Loading…</p>
   if (!isNew && !product) return <p className="text-sm text-ink/50">Product not found.</p>
   if (!product) return <p className="text-sm text-ink/50">Loading…</p>
 
@@ -183,22 +191,24 @@ export function ProductEditor() {
     setDirty(true)
     setProduct({ ...product, [key]: value })
   }
-  const validate = () => {
-    if (!product.name.trim()) return 'Product name is required.'
-    if (!product.slug.trim() && !product.name.trim()) return 'Slug is required.'
-    if (product.price < 0) return 'Price must be zero or greater.'
-    return ''
-  }
+  const slug = product.slug.trim() || slugify(product.name)
+  const nameError = product.name.trim() ? '' : 'Product name is required.'
+  const slugError = isSlug(slug) ? '' : 'Use lowercase letters, numbers, and hyphens.'
+  const priceError = isMoney(product.price) ? '' : 'Price must be zero or greater.'
   const save = async (closeAfter: boolean) => {
-    const v = validate()
-    if (v) {
-      setError(v)
+    if (nameError || slugError || priceError) {
+      setError(nameError || slugError || priceError)
       return
     }
+    const ok = await confirm({
+      title: closeAfter ? 'Save and close?' : 'Save product?',
+      message: `Save “${product.name.trim()}” to the catalog.`,
+      confirmLabel: closeAfter ? 'Save and close' : 'Save',
+    })
+    if (!ok) return
     setBusy(true)
     setError('')
     try {
-      const slug = product.slug || slugify(product.name)
       const next = { ...product, slug, id: product.id || `product-${slug}` }
       await api.saveProduct(next, isNew)
       setDirty(false)
@@ -212,9 +222,20 @@ export function ProductEditor() {
     }
   }
   const remove = async () => {
-    if (isNew || !confirm(`Delete ${product.name}?`)) return
-    await api.deleteProduct(product.id)
-    navigate('/products')
+    if (isNew) return
+    const ok = await confirm({
+      title: 'Delete product?',
+      message: `Delete “${product.name}”. This removes it from the catalog.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })
+    if (!ok) return
+    try {
+      await api.deleteProduct(product.id)
+      navigate('/products')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed')
+    }
   }
 
   return (
@@ -227,22 +248,23 @@ export function ProductEditor() {
           {!isNew && product.status === 'draft' && <span className="self-center text-xs text-ink/50">Draft — not on the shop</span>}
           {!isNew && <Button type="button" variant="ghost" onClick={() => void remove()}>Delete</Button>}
           <Link to="/products"><Button type="button" variant="outline">Back</Button></Link>
-          <Button type="button" disabled={busy || !product.name} onClick={() => void save(false)}>Save</Button>
-          <Button type="button" disabled={busy || !product.name} onClick={() => void save(true)}>Save and close</Button>
+          <Button type="button" disabled={busy || !product.name.trim()} onClick={() => void save(false)}>{busy ? 'Saving…' : 'Save'}</Button>
+          <Button type="button" disabled={busy || !product.name.trim()} onClick={() => void save(true)}>{busy ? 'Saving…' : 'Save and close'}</Button>
         </div>
       </PageHeader>
       {savedMsg && <p className="mb-4 text-sm text-olive">{savedMsg}</p>}
       {error && <div className="mb-5"><Notice>{error}</Notice></div>}
       <div className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
         <Card className="space-y-5">
-          <Field label="Name"><Input value={product.name} onChange={(e) => {
+          <Field label="Name" error={error ? nameError : ''}><Input value={product.name} onChange={(e) => {
             const name = e.target.value
+            setDirty(true)
             setProduct({ ...product, name, slug: isNew ? slugify(name) : product.slug })
           }} /></Field>
           <div className="grid gap-5 md:grid-cols-2">
-            <Field label="Slug"><Input value={product.slug} onChange={(e) => set('slug', e.target.value)} /></Field>
+            <Field label="Slug" error={error ? slugError : ''}><Input value={product.slug} onChange={(e) => set('slug', e.target.value)} /></Field>
             <Field label="SKU"><Input value={product.sku ?? ''} onChange={(e) => set('sku', e.target.value || undefined)} /></Field>
-            <Field label="Price (PHP)"><Input type="number" min={0} step="0.5" value={product.price} onChange={(e) => set('price', Number(e.target.value))} /></Field>
+            <Field label="Price (PHP)" error={error ? priceError : ''}><Input type="number" min={0} step="0.5" value={product.price} onChange={(e) => set('price', Number(e.target.value))} /></Field>
             <Field label="Sort order"><Input type="number" value={product.sortOrder} onChange={(e) => set('sortOrder', Number(e.target.value))} /></Field>
           </div>
           <Field label="Short description"><Textarea rows={3} value={product.shortDescription} onChange={(e) => set('shortDescription', e.target.value)} /></Field>

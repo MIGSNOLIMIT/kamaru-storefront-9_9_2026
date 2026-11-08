@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import { useConfirm } from '../confirm'
 import { Button, Card, Notice, PageHeader } from '../ui'
 
 type Asset = { id: string; public_url: string; path: string; created_at: string }
 
 export function MediaPage() {
+  const confirm = useConfirm()
   const [items, setItems] = useState<Asset[]>([])
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
@@ -21,7 +23,8 @@ export function MediaPage() {
   }
 
   const remove = async (id: string) => {
-    if (!confirm('Delete this asset?')) return
+    const ok = await confirm({ title: 'Delete asset?', message: 'Delete this file from the media library. It must not still be used in the catalog.', confirmLabel: 'Delete', tone: 'danger' })
+    if (!ok) return
     try {
       await api.deleteMedia(id)
       load()

@@ -18,6 +18,7 @@ import { Orders } from './pages/Orders'
 import { ProductEditor, ProductList } from './pages/Products'
 import { Sections } from './pages/Sections'
 import { Settings } from './pages/Settings'
+import { ConfirmProvider } from './confirm'
 import { StaffAuthProvider, useStaffAuth } from './state/StaffAuth'
 import { Button } from './ui'
 
@@ -142,7 +143,9 @@ export default function App() {
   return (
     <BrowserRouter basename="/cms">
       <StaffAuthProvider>
-        <Shell />
+        <ConfirmProvider>
+          <Shell />
+        </ConfirmProvider>
       </StaffAuthProvider>
     </BrowserRouter>
   )

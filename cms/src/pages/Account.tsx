@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { UserRole } from '../../../src/types'
 import { adminApi } from '../adminApi'
+import { useConfirm } from '../confirm'
 import { useStaffAuth } from '../state/StaffAuth'
 import { Button, Card, Field, Input, Notice, PageHeader } from '../ui'
+import { isEmail } from '../validate'
 
 function roleLabel(role: UserRole) {
   return role === 'super_admin' ? 'Super admin' : 'Editor'
@@ -13,6 +15,7 @@ type StaffRow = { id: string; email: string; fullName: string; role: UserRole; p
 
 export function Account() {
   const { staff, token, updateStaff } = useStaffAuth()
+  const confirm = useConfirm()
   const [name, setName] = useState(staff?.fullName ?? '')
   const [newEmail, setNewEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -46,6 +49,12 @@ export function Account() {
   if (!staff || !token) return null
 
   const saveName = async () => {
+    if (!name.trim()) {
+      setError('Display name is required.')
+      return
+    }
+    const ok = await confirm({ title: 'Save your name?', message: `Your CMS name will be “${name.trim()}”.`, confirmLabel: 'Save name' })
+    if (!ok) return
     setBusy(true)
     setError('')
     setSaved('')
@@ -62,6 +71,12 @@ export function Account() {
 
   const addEditor = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!editorName.trim() || !isEmail(editorEmail) || editorPassword.length < 8) {
+      setError('Enter a name, a valid email, and a password of at least 8 characters.')
+      return
+    }
+    const ok = await confirm({ title: 'Add editor?', message: `${editorName.trim()} will be able to sign in as ${editorEmail.trim()}.`, confirmLabel: 'Add editor' })
+    if (!ok) return
     setBusy(true)
     setError('')
     setSaved('')
@@ -80,6 +95,12 @@ export function Account() {
   }
 
   const saveEditor = async (row: StaffRow) => {
+    if (!row.fullName.trim() || !isEmail(row.email) || (row.password && row.password.length < 8)) {
+      setError('Each editor needs a name, a valid email, and a new password of at least 8 characters if you set one.')
+      return
+    }
+    const ok = await confirm({ title: 'Save editor?', message: `Update ${row.fullName.trim()} (${row.email.trim()}).`, confirmLabel: 'Save editor' })
+    if (!ok) return
     setBusy(true)
     setError('')
     setSaved('')
@@ -99,7 +120,8 @@ export function Account() {
   }
 
   const removeEditor = async (row: StaffRow) => {
-    if (!window.confirm(`Delete ${row.fullName}? They will no longer be able to sign in.`)) return
+    const ok = await confirm({ title: 'Delete editor?', message: `Delete ${row.fullName}? They will no longer be able to sign in.`, confirmLabel: 'Delete', tone: 'danger' })
+    if (!ok) return
     setBusy(true)
     setError('')
     setSaved('')
@@ -116,6 +138,12 @@ export function Account() {
 
   const requestEmail = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isEmail(newEmail) || !password) {
+      setError('Enter a valid new email and your current password.')
+      return
+    }
+    const ok = await confirm({ title: 'Change email?', message: `A confirmation link will be created for ${newEmail.trim()}. Sign-in stays on your current email until you open it.`, confirmLabel: 'Continue' })
+    if (!ok) return
     setBusy(true)
     setError('')
     setSaved('')
@@ -144,7 +172,7 @@ export function Account() {
           <Field label="Display name">
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
-          <Button type="button" disabled={busy || !name.trim()} onClick={() => void saveName()}>Save name</Button>
+          <Button type="button" disabled={busy || !name.trim()} onClick={() => void saveName()}>{busy ? 'Saving…' : 'Save name'}</Button>
         </Card>
 
         {isSuper && (

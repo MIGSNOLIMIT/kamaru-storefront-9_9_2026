@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import type { BulkOrder, OrderStatus } from '../../../src/types'
 import { adminApi } from '../adminApi'
 import { useStaffAuth } from '../state/StaffAuth'
+import { useConfirm } from '../confirm'
 import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
 
 const statuses: OrderStatus[] = ['pending', 'payment_review', 'confirmed', 'preparing', 'shipped', 'completed', 'cancelled']
 
 export function Orders() {
   const { token } = useStaffAuth()
+  const confirm = useConfirm()
   const [orders, setOrders] = useState<BulkOrder[]>([])
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState('')
@@ -23,7 +25,14 @@ export function Orders() {
 
   const save = async (order: BulkOrder) => {
     if (!token) return
+    if (!statuses.includes(order.status)) {
+      setError('Choose a valid order status.')
+      return
+    }
+    const ok = await confirm({ title: 'Save order?', message: `Update order ${order.id.slice(0, 8)} to ${order.status.replaceAll('_', ' ')}.`, confirmLabel: 'Save order' })
+    if (!ok) return
     setBusyId(order.id)
+    setError('')
     try {
       await adminApi.updateOrder(token, order.id, {
         status: order.status,
@@ -109,7 +118,7 @@ export function Orders() {
             <Field label="Staff notes">
               <Textarea rows={3} value={order.staffNotes ?? ''} onChange={(e) => setOrders((list) => list.map((o) => o.id === order.id ? { ...o, staffNotes: e.target.value } : o))} />
             </Field>
-            <Button type="button" disabled={busyId === order.id} onClick={() => void save(orders.find((o) => o.id === order.id)!)}>Save order</Button>
+            <Button type="button" disabled={busyId === order.id} onClick={() => void save(orders.find((o) => o.id === order.id)!)}>{busyId === order.id ? 'Saving…' : 'Save order'}</Button>
           </Card>
         ))}
       </div>

@@ -43,6 +43,13 @@ function serveSpa(res: ServerResponse, distDir: string, urlPath: string) {
   sendFile(res, path.join(distDir, 'index.html'))
 }
 
+function normalizeCmsDevHtml(html: string) {
+  return html
+    .replace(/(['"])(?:\.\/|\/)src\/main\.tsx\1/g, '$1/cms/src/main.tsx$1')
+    .replace(/(['"])\/@vite\/client\1/g, '$1/cms/@vite/client$1')
+    .replace(/(['"])\/@react-refresh\1/g, '$1/cms/@react-refresh$1')
+}
+
 function useVite(vite: ViteDevServer, req: IncomingMessage, res: ServerResponse) {
   const middlewares = vite.middlewares as Connect.Server
   middlewares(req, res, () => {
@@ -86,10 +93,9 @@ async function main() {
       if (!isProd && (url === '/cms/' || url.startsWith('/cms/?'))) {
         let html = readFileSync(path.join(root, 'cms', 'index.html'), 'utf8')
         html = await cms!.transformIndexHtml('/cms/', html)
-        if (!html.includes('/cms/src/main.tsx') && !html.includes('./src/main.tsx')) {
-          html = html.replace('src="/src/main.tsx"', 'src="/cms/src/main.tsx"')
-        }
+        html = normalizeCmsDevHtml(html)
         res.setHeader('Content-Type', 'text/html; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
         res.end(html)
         return
       }

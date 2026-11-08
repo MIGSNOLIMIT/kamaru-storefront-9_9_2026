@@ -3,15 +3,19 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Category } from '../../../src/types'
 import { api, slugify, type Snapshot } from '../api'
 import { ImageField } from '../components/ImageField'
+import { useConfirm } from '../confirm'
 import { Button, Card, Field, Input, Notice, PageHeader, Select, Textarea } from '../ui'
+import { isSlug } from '../validate'
 
 export function CategoryList() {
+  const confirm = useConfirm()
   const [data, setData] = useState<Snapshot | null>(null)
   const [error, setError] = useState('')
   const reload = () => void api.snapshot().then(setData).catch((e: Error) => setError(e.message))
   useEffect(() => { reload() }, [])
   const remove = async (category: Category) => {
-    if (!confirm(`Delete ${category.name}?`)) return
+    const ok = await confirm({ title: 'Delete category?', message: `Delete “${category.name}”. Products using it must be moved first.`, confirmLabel: 'Delete', tone: 'danger' })
+    if (!ok) return
     setError('')
     try {
       await api.deleteCategory(category.id)
@@ -64,6 +68,7 @@ const blank = (sortOrder: number): Category => ({
 export function CategoryEditor() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const isNew = !id
   const [data, setData] = useState<Snapshot | null>(null)
   const [category, setCategory] = useState<Category | null>(null)
@@ -80,17 +85,24 @@ export function CategoryEditor() {
     }).catch((e: Error) => setError(e.message))
   }, [id, isNew])
 
-  if (error) return <Notice>{error}</Notice>
-  if (!data) return <p className="text-sm text-ink/50">Loading…</p>
+  if (!data) return error ? <Notice>{error}</Notice> : <p className="text-sm text-ink/50">Loading…</p>
   if (!isNew && !category) return <p className="text-sm text-ink/50">Category not found.</p>
   if (!category) return <p className="text-sm text-ink/50">Loading…</p>
 
   const set = <K extends keyof Category>(key: K, value: Category[K]) => setCategory({ ...category, [key]: value })
+  const slug = category.slug.trim() || slugify(category.name)
+  const nameError = category.name.trim() ? '' : 'Category name is required.'
+  const slugError = isSlug(slug) ? '' : 'Use lowercase letters, numbers, and hyphens.'
   const save = async () => {
+    if (nameError || slugError) {
+      setError(nameError || slugError)
+      return
+    }
+    const ok = await confirm({ title: 'Save category?', message: `Save “${category.name.trim()}”.`, confirmLabel: 'Save' })
+    if (!ok) return
     setBusy(true)
     setError('')
     try {
-      const slug = category.slug || slugify(category.name)
       await api.saveCategory({ ...category, slug, id: category.id || slug }, isNew)
       navigate('/categories')
     } catch (e) {
@@ -100,7 +112,9 @@ export function CategoryEditor() {
     }
   }
   const remove = async () => {
-    if (isNew || !confirm(`Delete ${category.name}?`)) return
+    if (isNew) return
+    const ok = await confirm({ title: 'Delete category?', message: `Delete “${category.name}”.`, confirmLabel: 'Delete', tone: 'danger' })
+    if (!ok) return
     try {
       await api.deleteCategory(category.id)
       navigate('/categories')
@@ -115,17 +129,17 @@ export function CategoryEditor() {
         <div className="flex gap-2">
           {!isNew && <Button type="button" variant="ghost" onClick={() => void remove()}>Delete</Button>}
           <Link to="/categories"><Button type="button" variant="outline">Back</Button></Link>
-          <Button type="button" disabled={busy || !category.name} onClick={() => void save()}>Save</Button>
+          <Button type="button" disabled={busy || !category.name.trim()} onClick={() => void save()}>{busy ? 'Saving…' : 'Save'}</Button>
         </div>
       </PageHeader>
       {error && <div className="mb-5"><Notice>{error}</Notice></div>}
       <Card className="grid max-w-3xl gap-5">
-        <Field label="Name"><Input value={category.name} onChange={(e) => {
+        <Field label="Name" error={error ? nameError : ''}><Input value={category.name} onChange={(e) => {
           const name = e.target.value
           setCategory({ ...category, name, slug: isNew ? slugify(name) : category.slug })
         }} /></Field>
         <div className="grid gap-5 md:grid-cols-2">
-          <Field label="Slug"><Input value={category.slug} onChange={(e) => set('slug', e.target.value)} /></Field>
+          <Field label="Slug" error={error ? slugError : ''}><Input value={category.slug} onChange={(e) => set('slug', e.target.value)} /></Field>
           <Field label="Parent">
             <Select value={category.parentId ?? ''} onChange={(e) => set('parentId', e.target.value || undefined)}>
               <option value="">Top level</option>

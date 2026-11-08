@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ColorOption, Product } from '../../../src/types'
 import { api, slugify, type Snapshot } from '../api'
+import { useConfirm } from '../confirm'
 import { Button, Field, Input, Notice } from '../ui'
 
 function normalizeHex(input: string) {
@@ -24,6 +25,7 @@ export function ColorPaletteEditor({
   paletteOnly?: boolean
   assignOnly?: boolean
 }) {
+  const confirm = useConfirm()
   const [newName, setNewName] = useState('')
   const [newHex, setNewHex] = useState('#171717')
   const [editId, setEditId] = useState<string | null>(null)
@@ -43,6 +45,8 @@ export function ColorPaletteEditor({
       setError('Enter a color name and a valid hex code (#RRGGBB).')
       return
     }
+    const ok = await confirm({ title: 'Add color?', message: `Add ${newName.trim()} (${hex}) to the catalog palette.`, confirmLabel: 'Add color' })
+    if (!ok) return
     setBusy(true)
     setError('')
     try {
@@ -63,6 +67,8 @@ export function ColorPaletteEditor({
       setError('Enter a color name and a valid hex code (#RRGGBB).')
       return
     }
+    const ok = await confirm({ title: 'Save color?', message: `Update this color to ${editName.trim()} (${hex}). Products using it are updated too.`, confirmLabel: 'Save color' })
+    if (!ok) return
     setBusy(true)
     setError('')
     try {
@@ -77,7 +83,8 @@ export function ColorPaletteEditor({
   }
 
   const removeColor = async (id: string) => {
-    if (!confirm('Delete this color from the catalog? It must not be used on any product.')) return
+    const ok = await confirm({ title: 'Delete color?', message: 'Delete this color from the catalog. It must not be used on any product.', confirmLabel: 'Delete', tone: 'danger' })
+    if (!ok) return
     setBusy(true)
     setError('')
     try {
@@ -139,7 +146,7 @@ export function ColorPaletteEditor({
                   <Field label="Hex"><Input value={editHex} onChange={(e) => setEditHex(e.target.value)} className="max-w-[8rem]" /></Field>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="button" disabled={busy} onClick={() => void saveEdit(color.id)}>Save color</Button>
+                  <Button type="button" disabled={busy} onClick={() => void saveEdit(color.id)}>{busy ? 'Saving…' : 'Save color'}</Button>
                   <Button type="button" variant="ghost" onClick={() => setEditId(null)}>Cancel</Button>
                 </div>
               </div>

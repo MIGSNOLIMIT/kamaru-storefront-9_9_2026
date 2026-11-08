@@ -16,11 +16,12 @@ export function Button({ className, variant = 'solid', ...props }: ButtonHTMLAtt
   )
 }
 
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: ReactNode }) {
   return (
     <label className="block text-[10px] font-bold tracking-[.16em] text-ink/55">
       {label}
-      <div className="mt-2">{children}</div>
+      <div className={twMerge('mt-2', error && '[&_input]:border-clay [&_textarea]:border-clay [&_select]:border-clay')}>{children}</div>
+      {error ? <p className="mt-1 text-xs font-medium normal-case tracking-normal text-clay">{error}</p> : hint ? <p className="mt-1 text-xs font-normal normal-case tracking-normal text-ink/40">{hint}</p> : null}
     </label>
   )
 }

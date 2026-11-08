@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import type { SiteSettings } from '../../../src/types'
 import { api } from '../api'
 import { ImageField } from '../components/ImageField'
+import { useConfirm } from '../confirm'
 import { Button, Card, Field, Input, Notice, PageHeader, Textarea } from '../ui'
 import { useStaffAuth } from '../state/StaffAuth'
+import { isEmail, isOptionalUrl } from '../validate'
 
 function ReadOnlyValue({ label, value }: { label: string; value: string }) {
   return (
@@ -15,9 +17,11 @@ function ReadOnlyValue({ label, value }: { label: string; value: string }) {
 
 export function Settings() {
   const { staff } = useStaffAuth()
+  const confirm = useConfirm()
   const canEditPayment = staff?.role === 'super_admin'
   const [settings, setSettings] = useState<SiteSettings | null>(null)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -32,7 +36,27 @@ export function Settings() {
   const bank = settings.bankDetails ?? { bankName: '', accountName: '', accountNumber: '', branch: '' }
   const stores = settings.marketplaceStores ?? {}
 
+  const problems = () => {
+    const next: Record<string, string> = {}
+    if (!settings.brandName.trim()) next.brandName = 'Brand name is required.'
+    if (settings.email.trim() && !isEmail(settings.email)) next.email = 'Enter a valid email.'
+    if (settings.inquiryEmail.trim() && !isEmail(settings.inquiryEmail)) next.inquiryEmail = 'Enter a valid email.'
+    if (!isOptionalUrl(settings.headerLogoUrl)) next.headerLogoUrl = 'Logo URL must start with http://, https://, or /.'
+    if (!isOptionalUrl(settings.footerLogoUrl)) next.footerLogoUrl = 'Logo URL must start with http://, https://, or /.'
+    if (settings.bulkMoq != null && (!Number.isInteger(settings.bulkMoq) || settings.bulkMoq < 1)) next.bulkMoq = 'Bulk MOQ must be a whole number of at least 1.'
+    return next
+  }
+
   const save = async () => {
+    const nextErrors = problems()
+    setFieldErrors(nextErrors)
+    if (Object.keys(nextErrors).length) {
+      setError('Check the highlighted fields before saving.')
+      setSaved('')
+      return
+    }
+    const ok = await confirm({ title: 'Save settings?', message: 'This updates the storefront contact details, logos, and payment information you are allowed to change.', confirmLabel: 'Save settings' })
+    if (!ok) return
     setBusy(true)
     setError('')
     try {
@@ -48,7 +72,7 @@ export function Settings() {
   return (
     <div>
       <PageHeader kicker="Site" title="Settings">
-        <Button type="button" disabled={busy} onClick={() => void save()}>Save settings</Button>
+        <Button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Save settings'}</Button>
       </PageHeader>
       {error && <div className="mb-5"><Notice>{error}</Notice></div>}
       {saved && <p className="mb-5 text-sm text-olive">{saved}</p>}
@@ -64,13 +88,14 @@ export function Settings() {
           onChange={(img) => set('footerLogoUrl', img.src || undefined)}
         />
         <p className="text-xs text-ink/45">Header logo appears in the top bar and menu. Footer logo appears on the dark footer. Leave either empty to keep the KAMARU wordmark.</p>
+        {(fieldErrors.headerLogoUrl || fieldErrors.footerLogoUrl) && <p className="text-xs text-clay">{fieldErrors.headerLogoUrl || fieldErrors.footerLogoUrl}</p>}
         <div className="grid gap-5 md:grid-cols-2">
-          <Field label="Brand name"><Input value={settings.brandName} onChange={(e) => set('brandName', e.target.value)} /></Field>
+          <Field label="Brand name" error={fieldErrors.brandName}><Input value={settings.brandName} onChange={(e) => set('brandName', e.target.value)} /></Field>
           <Field label="Tagline"><Input value={settings.tagline} onChange={(e) => set('tagline', e.target.value)} /></Field>
-          <Field label="Email"><Input type="email" value={settings.email} onChange={(e) => set('email', e.target.value)} /></Field>
-          <Field label="Inquiry inbox email"><Input type="email" value={settings.inquiryEmail} onChange={(e) => set('inquiryEmail', e.target.value)} /></Field>
+          <Field label="Email" error={fieldErrors.email}><Input type="email" value={settings.email} onChange={(e) => set('email', e.target.value)} /></Field>
+          <Field label="Inquiry inbox email" error={fieldErrors.inquiryEmail}><Input type="email" value={settings.inquiryEmail} onChange={(e) => set('inquiryEmail', e.target.value)} /></Field>
           <Field label="Fax"><Input value={settings.fax} onChange={(e) => set('fax', e.target.value)} /></Field>
-          <Field label="Bulk MOQ (optional)"><Input type="number" min={1} value={settings.bulkMoq ?? ''} onChange={(e) => set('bulkMoq', e.target.value ? Number(e.target.value) : undefined)} /></Field>
+          <Field label="Bulk MOQ (optional)" error={fieldErrors.bulkMoq}><Input type="number" min={1} value={settings.bulkMoq ?? ''} onChange={(e) => set('bulkMoq', e.target.value ? Number(e.target.value) : undefined)} /></Field>
           <Field label="GA4 measurement ID"><Input value={settings.ga4MeasurementId ?? ''} onChange={(e) => set('ga4MeasurementId', e.target.value || undefined)} /></Field>
         </div>
         <Field label="Phones (one per line)"><Textarea rows={3} value={settings.phones.join('\n')} onChange={(e) => set('phones', e.target.value.split('\n').map((line) => line.trim()).filter(Boolean))} /></Field>
