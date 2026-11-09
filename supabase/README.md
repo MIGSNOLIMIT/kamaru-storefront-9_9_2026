@@ -38,7 +38,7 @@ VITE_SITE_URL=https://your-production-domain.com
    Keep the `{{ .ConfirmationURL }}` link placeholders exactly as Supabase expects.
 
 8. Seed catalog rows from the current CMS export or run the app locally with JSON until migration scripts are added.
-9. Run `migrations/003_super_admin_role.sql`, then promote staff in the SQL editor:
+9. Run `migrations/003_super_admin_role.sql`, then `migrations/004_commerce_staff.sql`. 004 creates a customer profile for every signup, lets the contact form and payment-proof uploads work, and adds the CMS staff tables. Staff promoted below:
 
    - **Super admin** (can edit GCash, bank, and QR in CMS): `update profiles set role = 'super_admin' where email = 'you@example.com';`
    - **Editors** (catalog, orders, content — payment details are view-only): `admin`, `content`, or `orders`

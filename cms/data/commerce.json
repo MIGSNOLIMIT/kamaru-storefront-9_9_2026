@@ -9,8 +9,8 @@
         "email": "admin@kamaru.local",
         "fullName": "Kamaru Admin",
         "role": "super_admin",
-        "createdAt": "2026-10-05T02:52:47.342Z",
-        "lastActiveAt": "2026-10-05T02:52:47.342Z"
+        "createdAt": "2026-11-09T00:19:03.216029+00:00",
+        "lastActiveAt": "2026-11-09T02:56:02.105Z"
       },
       "seedKey": "local-admin"
     },
@@ -21,10 +21,10 @@
       "profile": {
         "id": "412e2393-620d-4cd7-93b0-3e87464cec76",
         "email": "migsnolimit26@gmail.com",
-        "fullName": "Migs",
+        "fullName": "Carlos Miguel Samson",
         "role": "admin",
-        "createdAt": "2026-10-05T02:56:39.384Z",
-        "lastActiveAt": "2026-10-05T02:56:39.384Z"
+        "createdAt": "2026-11-09T00:19:03.83997+00:00",
+        "lastActiveAt": "2026-11-09T02:56:02.631Z"
       },
       "seedKey": "migs-26"
     },
@@ -38,8 +38,8 @@
         "email": "migsnolimit23@gmail.com",
         "fullName": "Migs",
         "role": "super_admin",
-        "createdAt": "2026-10-12T06:14:05.766Z",
-        "lastActiveAt": "2026-10-12T06:14:05.766Z"
+        "createdAt": "2026-11-09T00:19:03.659638+00:00",
+        "lastActiveAt": "2026-11-09T02:56:02.380Z"
       }
     }
   ],

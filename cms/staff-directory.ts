@@ -12,6 +12,13 @@ import {
 } from './commerce-store.ts'
 import { supabaseServiceConfig } from './env-server.ts'
 import { isStaffRole } from './staff-roles.ts'
+import {
+  addRemovedSeedRemote,
+  deleteEmailChangeRemote,
+  findEmailChangeRemote,
+  removedSeedKeysRemote,
+  saveEmailChangeRemote,
+} from './commerce-supabase.ts'
 import { getSupabaseAdmin, isSupabaseTemporarilyDown, noteSupabaseUnavailable } from './supabase-catalog.ts'
 
 const STAFF_ROLES: UserRole[] = ['admin', 'content', 'orders', 'super_admin']
@@ -158,7 +165,7 @@ async function ensureRemoteSeeds() {
 async function seedRemoteStaff() {
   const sb = getSupabaseAdmin()
   if (!sb) return
-  const removed = new Set(loadCommerce().removedSeedKeys ?? [])
+  const removed = new Set([...(loadCommerce().removedSeedKeys ?? []), ...((await removedSeedKeysRemote()) ?? [])])
   for (const person of STAFF_SEEDS) {
     if (removed.has(person.seedKey)) continue
     let created = false
@@ -446,6 +453,7 @@ export async function deleteEditor(id: string) {
     data.users = data.users.filter((item) => item.id !== id && item.email.toLowerCase() !== removedEmail)
     if (seedKey) data.removedSeedKeys = [...new Set([...(data.removedSeedKeys ?? []), seedKey])]
   })
+  if (seedKey) await addRemovedSeedRemote(seedKey)
   forgetCachedUser(id)
 }
 
@@ -497,18 +505,21 @@ export async function requestStaffEmailChange(user: StoredUser, newEmail: string
   if (await emailTaken(newEmail, user.id)) throw new StaffError('That email is already in use.', 409)
   const token = createResetToken()
   const expires = new Date(Date.now() + 1000 * 60 * 30).toISOString()
-  await updateCommerce((data) => {
-    data.emailChanges = [
-      ...(data.emailChanges ?? []).filter((item) => item.userId !== user.id),
-      { token, userId: user.id, email: newEmail, expires },
-    ]
-  })
+  const savedRemote = await saveEmailChangeRemote({ token, userId: user.id, email: newEmail, expires })
+  if (!savedRemote) {
+    await updateCommerce((data) => {
+      data.emailChanges = [
+        ...(data.emailChanges ?? []).filter((item) => item.userId !== user.id),
+        { token, userId: user.id, email: newEmail, expires },
+      ]
+    })
+  }
   return { ok: true as const, confirmToken: token, confirmPath: `/cms/confirm-email?token=${token}` }
 }
 
 export async function confirmStaffEmailChange(token: string) {
   const snapshot = loadCommerce()
-  const change = snapshot.emailChanges?.find((item) => item.token === token)
+  const change = (await findEmailChangeRemote(token)) ?? snapshot.emailChanges?.find((item) => item.token === token)
   const legacy = snapshot.users.find((item) => item.emailChangeToken === token)
   const userId = change?.userId ?? legacy?.id ?? ''
   const email = change?.email ?? legacy?.pendingEmail ?? ''
@@ -534,6 +545,7 @@ export async function confirmStaffEmailChange(token: string) {
       if (!noteSupabaseUnavailable(error)) throw error
     }
   }
+  await deleteEmailChangeRemote(token)
   const profile = await updateCommerce((data) => {
     data.emailChanges = (data.emailChanges ?? []).filter((item) => item.token !== token)
     const user = data.users.find((item) => item.id === userId)

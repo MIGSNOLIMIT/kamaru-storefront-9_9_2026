@@ -13,7 +13,7 @@ import {
   uploadsDir,
   type ContentStore,
 } from './json-catalog.ts'
-import { loadCatalog, saveCatalog, uploadBrandAsset, listMediaAssets, insertNewsletter, listInquiriesSupabase, signedPaymentProofUrl, getSupabaseAdmin } from './supabase-catalog.ts'
+import { loadCatalog, saveCatalog, uploadBrandAsset, listMediaAssets, insertNewsletter, signedPaymentProofUrl, getSupabaseAdmin } from './supabase-catalog.ts'
 import { handleCommerceRoutes } from './commerce-routes.ts'
 import type { Article, Category, ColorOption, HomeSection, Product, ProductQuery, SiteSettings } from '../src/types.ts'
 
@@ -185,13 +185,6 @@ export async function handleCmsApi(req: IncomingMessage, res: ServerResponse) {
 
     if (method === 'GET' && pathname === '/api/admin/snapshot') return send(res, 200, data)
 
-    if (method === 'GET' && pathname === '/api/admin/inquiries') {
-      const remote = await listInquiriesSupabase()
-      if (remote) return send(res, 200, remote)
-      const { loadCommerce } = await import('./commerce-store.ts')
-      return send(res, 200, loadCommerce().inquiries)
-    }
-
     if (method === 'GET' && pathname === '/api/admin/media') {
       return send(res, 200, await listMediaAssets())
     }
@@ -360,8 +353,10 @@ export async function handleCmsApi(req: IncomingMessage, res: ServerResponse) {
     const proofRoute = match(pathname, '/api/admin/orders/:id/payment-proof-url')
     if (proofRoute && method === 'GET') {
       if (!await requireStaff(req)) return send(res, 401, { error: 'Unauthorized' })
+      const { getOrderRemote } = await import('./commerce-supabase.ts')
+      const remoteOrder = await getOrderRemote(proofRoute.id)
       const { loadCommerce } = await import('./commerce-store.ts')
-      const order = loadCommerce().orders.find((o) => o.id === proofRoute.id)
+      const order = remoteOrder === undefined ? loadCommerce().orders.find((o) => o.id === proofRoute.id) : remoteOrder
       if (!order?.paymentProofUrl) return send(res, 404, { error: 'No payment proof.' })
       const signed = await signedPaymentProofUrl(order.paymentProofUrl)
       return send(res, 200, { url: signed ?? order.paymentProofUrl })

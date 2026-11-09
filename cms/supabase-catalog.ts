@@ -378,11 +378,3 @@ export async function insertNewsletter(email: string, consent: boolean) {
   if (!list.some((x) => x.email === email)) list.push({ email, consent, createdAt: new Date().toISOString() })
   writeFileSync(file, JSON.stringify(list, null, 2))
 }
-
-export async function listInquiriesSupabase() {
-  const sb = getSupabaseAdmin()
-  if (!sb) return null
-  const { data, error } = await sb.from('inquiries').select('*').order('created_at', { ascending: false })
-  if (error) throw new Error(error.message)
-  return data
-}

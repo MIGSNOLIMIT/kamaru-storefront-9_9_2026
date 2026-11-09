@@ -4,6 +4,13 @@ import type { BulkOrder, Inquiry, Profile, UserRole } from '../src/types.ts'
 import { createResetToken, hashPassword, loadCommerce, updateCommerce, type StoredUser } from './commerce-store.ts'
 import { isSuperAdmin } from './staff-roles.ts'
 import {
+  insertInquiryRemote,
+  listInquiriesRemote,
+  listMembersRemote,
+  listOrdersRemote,
+  updateOrderRemote,
+} from './commerce-supabase.ts'
+import {
   confirmStaffEmailChange,
   createEditor,
   deleteEditor,
@@ -176,8 +183,8 @@ export async function handleCommerceRoutes(
       send(res, 400, { error: 'userId required' })
       return true
     }
-    const commerce = loadCommerce()
-    send(res, 200, commerce.orders.filter((o) => o.userId === userId))
+    const remoteOrders = await listOrdersRemote(userId)
+    send(res, 200, remoteOrders ?? loadCommerce().orders.filter((o) => o.userId === userId))
     return true
   }
 
@@ -201,6 +208,11 @@ export async function handleCommerceRoutes(
 
   if (method === 'POST' && pathname === '/api/public/inquiries') {
     const body = await parseBody<Omit<Inquiry, 'id' | 'createdAt'>>(req)
+    const saved = await insertInquiryRemote(body)
+    if (saved) {
+      send(res, 201, saved)
+      return true
+    }
     const inquiry = await updateCommerce((commerce) => {
       const created: Inquiry = { ...body, id: randomUUID(), createdAt: new Date().toISOString() }
       commerce.inquiries.unshift(created)
@@ -237,15 +249,17 @@ export async function handleCommerceRoutes(
       send(res, 401, { error: 'Unauthorized' })
       return true
     }
-    const commerce = loadCommerce()
-    const members = commerce.users
-      .filter((u) => u.profile.role === 'customer')
-      .map((u) => ({
-        ...u.profile,
-        orderCount: commerce.orders.filter((o) => o.userId === u.id).length,
-      }))
-    send(res, 200, members)
-    return true
+    return staffWork(res, 200, async () => {
+      const remoteMembers = await listMembersRemote()
+      if (remoteMembers) return remoteMembers
+      const commerce = loadCommerce()
+      return commerce.users
+        .filter((u) => u.profile.role === 'customer')
+        .map((u) => ({
+          ...u.profile,
+          orderCount: commerce.orders.filter((o) => o.userId === u.id).length,
+        }))
+    })
   }
 
   if (method === 'GET' && pathname === '/api/admin/orders') {
@@ -253,8 +267,7 @@ export async function handleCommerceRoutes(
       send(res, 401, { error: 'Unauthorized' })
       return true
     }
-    send(res, 200, loadCommerce().orders)
-    return true
+    return staffWork(res, 200, async () => (await listOrdersRemote()) ?? loadCommerce().orders)
   }
 
   const adminOrder = match(pathname, '/api/admin/orders/:id')
@@ -264,6 +277,15 @@ export async function handleCommerceRoutes(
       return true
     }
     const body = await parseBody<Partial<BulkOrder>>(req)
+    const remoteOrder = await updateOrderRemote(adminOrder.id, body).catch((error: Error) => {
+      send(res, 500, { error: error.message })
+      return 'failed' as const
+    })
+    if (remoteOrder === 'failed') return true
+    if (remoteOrder) {
+      send(res, 200, remoteOrder)
+      return true
+    }
     const order = await updateCommerce((commerce) => {
       const index = commerce.orders.findIndex((o) => o.id === adminOrder.id)
       if (index < 0) return null
@@ -287,8 +309,7 @@ export async function handleCommerceRoutes(
       send(res, 401, { error: 'Unauthorized' })
       return true
     }
-    send(res, 200, loadCommerce().inquiries)
-    return true
+    return staffWork(res, 200, async () => (await listInquiriesRemote()) ?? loadCommerce().inquiries)
   }
 
   if (method === 'GET' && pathname === '/api/admin/staff') {
