@@ -13,6 +13,13 @@ export function sectionImage(content: SectionContent | undefined, fallback: Imag
   return fallback
 }
 
+export function heroSlides(content: SectionContent | undefined, fallback: ImageRef): ImageRef[] {
+  const slides = (content?.images ?? []).filter((image) => image.src)
+  if (slides.length) return slides
+  const single = sectionImage(content, fallback)
+  return single.src ? [single] : [fallback]
+}
+
 export function sectionContent(section: HomeSection): SectionContent {
   return section.content ?? {}
 }

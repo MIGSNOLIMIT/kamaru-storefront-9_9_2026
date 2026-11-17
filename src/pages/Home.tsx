@@ -1,14 +1,49 @@
-import { ArrowRight, Droplets, Hammer, HeartHandshake, MapPin } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight, Droplets, Hammer, HeartHandshake, MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useArticles, useCategories, useHomeSections } from '../hooks/useContent'
 import { useHomeProductList } from '../lib/homeProducts'
-import type { HomeSection } from '../types'
+import type { HomeSection, ImageRef } from '../types'
 import { ProductGrid } from '../components/Product'
 import { Button, Media, SectionHeading } from '../components/UI'
-import { homePlaceholder, sectionContent, sectionImage } from '../lib/homeSectionContent'
+import { heroSlides, homePlaceholder, sectionContent, sectionImage } from '../lib/homeSectionContent'
 
 type BlockProps = { section: HomeSection }
+
+function HeroMedia({ images }: { images: ImageRef[] }) {
+  const [index, setIndex] = useState(0)
+  const count = images.length
+  useEffect(() => {
+    if (count < 2) return
+    const timer = window.setInterval(() => setIndex((current) => (current + 1) % count), 5000)
+    return () => window.clearInterval(timer)
+  }, [count])
+  const current = images[index] ?? images[0]
+  if (!current || count < 2) {
+    return <div className="absolute inset-0 opacity-60"><Media eager image={current} /></div>
+  }
+  const go = (next: number) => setIndex((next + count) % count)
+  return (
+    <div className="absolute inset-0">
+      {images.map((image, i) => (
+        <div key={`${image.id}-${i}`} className={`absolute inset-0 transition-opacity duration-700 ${i === index ? 'opacity-60' : 'opacity-0'}`} aria-hidden={i !== index}>
+          <Media eager={i === index} image={image} />
+        </div>
+      ))}
+      <button type="button" aria-label="Previous hero image" onClick={() => go(index - 1)} className="absolute left-4 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center bg-white/90 text-ink">
+        <ChevronLeft />
+      </button>
+      <button type="button" aria-label="Next hero image" onClick={() => go(index + 1)} className="absolute right-4 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center bg-white/90 text-ink">
+        <ChevronRight />
+      </button>
+      <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+        {images.map((image, i) => (
+          <button key={`${image.id}-dot-${i}`} type="button" aria-label={`Show hero image ${i + 1}`} aria-current={i === index} onClick={() => setIndex(i)} className={`size-2.5 rounded-full ${i === index ? 'bg-white' : 'bg-white/45'}`} />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function HeroBlock({ section }: BlockProps) {
   const c = sectionContent(section)
@@ -17,10 +52,10 @@ function HeroBlock({ section }: BlockProps) {
   const subtitle = c.body || 'Durable bags designed to carry your everyday adventures.'
   const primaryLabel = c.ctaLabel || 'Shop now'
   const primaryHref = c.ctaHref || '/shop'
-  const bg = sectionImage(c, homePlaceholder('home-hero', 'Kamaru bags in an outdoor Filipino landscape'))
+  const slides = heroSlides(c, homePlaceholder('home-hero', 'Kamaru bags in an outdoor Filipino landscape'))
   return (
     <section className="relative flex min-h-[570px] items-end overflow-hidden bg-ink md:min-h-[700px] md:items-center">
-      <div className="absolute inset-0 opacity-60"><Media eager image={bg} /></div>
+      <HeroMedia images={slides} />
       <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-transparent" />
       <div className="container-site relative z-10 pb-16 text-white md:pb-0">
         <div className="animate-reveal max-w-3xl text-center md:text-left">

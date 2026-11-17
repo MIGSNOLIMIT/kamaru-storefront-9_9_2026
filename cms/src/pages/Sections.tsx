@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { HomeSection, Product, SectionContent, SectionContentItem } from '../../../src/types'
+import type { HomeSection, ImageRef, Product, SectionContent, SectionContentItem } from '../../../src/types'
 import { api, type Snapshot } from '../api'
 import { ImageField } from '../components/ImageField'
 import { useConfirm } from '../confirm'
@@ -71,6 +71,52 @@ function ProductPicker({
   )
 }
 
+function HeroImages({
+  images,
+  onChange,
+}: {
+  images: ImageRef[]
+  onChange: (images: ImageRef[]) => void
+}) {
+  const move = (index: number, dir: -1 | 1) => {
+    const swap = index + dir
+    if (swap < 0 || swap >= images.length) return
+    const next = [...images]
+    ;[next[index], next[swap]] = [next[swap], next[index]]
+    onChange(next)
+  }
+  return (
+    <div className="md:col-span-2 space-y-4">
+      <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">HERO IMAGES</p>
+      <p className="text-xs text-ink/45">Add one image for a still hero. Add two or more and the homepage hero becomes a carousel.</p>
+      {images.map((image, index) => (
+        <div key={`${image.id}-${index}`} className="space-y-3 border border-ink/10 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-bold">Image {index + 1}</p>
+            <div className="flex gap-1">
+              <Button type="button" variant="ghost" disabled={index === 0} onClick={() => move(index, -1)}>Up</Button>
+              <Button type="button" variant="ghost" disabled={index === images.length - 1} onClick={() => move(index, 1)}>Down</Button>
+              <Button type="button" variant="ghost" onClick={() => onChange(images.filter((_, i) => i !== index))}>Remove</Button>
+            </div>
+          </div>
+          <ImageField
+            label={`Hero image ${index + 1}`}
+            image={image}
+            onChange={(next) => onChange(images.map((item, i) => i === index ? next : item))}
+          />
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => onChange([...images, { id: `hero-${images.length + 1}`, alt: 'Kamaru hero', width: 1600, height: 900 }])}
+      >
+        Add hero image
+      </Button>
+    </div>
+  )
+}
+
 function SectionContentEditor({
   section,
   products,
@@ -102,13 +148,20 @@ function SectionContentEditor({
           <Textarea rows={4} value={c.body ?? ''} onChange={(e) => set({ body: e.target.value || undefined })} placeholder="Supporting text. For water-resistant, one line per badge label." />
         </Field>
       </div>
-      <div className="md:col-span-2">
-        <ImageField
-          label="Section image"
-          image={c.image ?? { id: `${section.type}-image`, alt: section.type, width: 1600, height: 900 }}
-          onChange={(image) => set({ image })}
+      {section.type === 'hero' ? (
+        <HeroImages
+          images={c.images?.length ? c.images : (c.image ? [c.image] : [])}
+          onChange={(images) => set({ images: images.length ? images : undefined, image: images.find((item) => item.src) })}
         />
-      </div>
+      ) : (
+        <div className="md:col-span-2">
+          <ImageField
+            label="Section image"
+            image={c.image ?? { id: `${section.type}-image`, alt: section.type, width: 1600, height: 900 }}
+            onChange={(image) => set({ image })}
+          />
+        </div>
+      )}
       <Field label="Button label">
         <Input value={c.ctaLabel ?? ''} onChange={(e) => set({ ctaLabel: e.target.value || undefined })} />
       </Field>

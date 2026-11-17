@@ -104,6 +104,8 @@ export interface SectionContent {
   subheadline?: string
   body?: string
   image?: ImageRef
+  /** Hero slides. One image stays still. Two or more become a carousel. */
+  images?: ImageRef[]
   ctaLabel?: string
   ctaHref?: string
   items?: SectionContentItem[]

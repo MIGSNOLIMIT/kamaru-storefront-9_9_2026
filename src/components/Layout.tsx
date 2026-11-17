@@ -36,10 +36,16 @@ function loadRecent(): string[] {
   }
 }
 
+const defaultLogo = '/kamaru-logo.png'
+
 export function Logo({ light = false, src }: { light?: boolean; src?: string }) {
   return (
-    <Link to="/" className={`inline-flex items-center font-display text-2xl font-extrabold tracking-[.2em] ${light ? 'text-white' : 'text-ink'}`}>
-      {src ? <img src={src} alt="KAMARU" className="h-10 w-auto max-w-[180px] object-contain" /> : 'KAMARU'}
+    <Link to="/" className="inline-flex items-center" aria-label="KAMARU home">
+      <img
+        src={src || defaultLogo}
+        alt="KAMARU"
+        className={`h-11 w-auto max-w-[42vw] object-contain sm:h-12 sm:max-w-[220px] md:h-14 md:max-w-[260px] ${light ? 'bg-white px-2 py-1' : ''}`}
+      />
     </Link>
   )
 }

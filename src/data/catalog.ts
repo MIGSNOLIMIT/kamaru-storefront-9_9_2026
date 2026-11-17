@@ -162,6 +162,8 @@ export const homeSections: HomeSection[] = ['hero','benefits','categories','new-
 export const siteSettings: SiteSettings = {
   brandName:'KAMARU',
   tagline:'GAWANG PINOY. TIBAY PINOY!',
+  headerLogoUrl:'/kamaru-logo.png',
+  footerLogoUrl:'/kamaru-logo.png',
   email:'info@kamaru.com.ph',
   inquiryEmail:'info@kamaru.com.ph',
   phones:['(02) 689-9376','(02) 998-5334'],
