@@ -30,13 +30,13 @@ function HeroMedia({ images }: { images: ImageRef[] }) {
           <Media eager={i === index} image={image} />
         </div>
       ))}
-      <button type="button" aria-label="Previous hero image" onClick={() => go(index - 1)} className="absolute left-4 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center bg-white/90 text-ink">
+      <button type="button" aria-label="Previous hero image" onClick={() => go(index - 1)} className="absolute left-4 top-1/2 z-30 grid size-11 -translate-y-1/2 place-items-center bg-white/90 text-ink">
         <ChevronLeft />
       </button>
-      <button type="button" aria-label="Next hero image" onClick={() => go(index + 1)} className="absolute right-4 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center bg-white/90 text-ink">
+      <button type="button" aria-label="Next hero image" onClick={() => go(index + 1)} className="absolute right-4 top-1/2 z-30 grid size-11 -translate-y-1/2 place-items-center bg-white/90 text-ink">
         <ChevronRight />
       </button>
-      <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+      <div className="absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 gap-2">
         {images.map((image, i) => (
           <button key={`${image.id}-dot-${i}`} type="button" aria-label={`Show hero image ${i + 1}`} aria-current={i === index} onClick={() => setIndex(i)} className={`size-2.5 rounded-full ${i === index ? 'bg-white' : 'bg-white/45'}`} />
         ))}
@@ -56,9 +56,9 @@ function HeroBlock({ section }: BlockProps) {
   return (
     <section className="relative flex min-h-[570px] items-end overflow-hidden bg-ink md:min-h-[700px] md:items-center">
       <HeroMedia images={slides} />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-transparent" />
-      <div className="container-site relative z-10 pb-16 text-white md:pb-0">
-        <div className="animate-reveal max-w-3xl text-center md:text-left">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-transparent" />
+      <div className="container-site pointer-events-none relative z-20 pb-16 text-white md:pb-0">
+        <div className="animate-reveal max-w-3xl text-center md:text-left [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
           <p className="mb-5 text-xs font-bold tracking-[.28em] text-khaki">{kicker}</p>
           <h1 className="text-5xl font-extrabold leading-[.94] tracking-tight sm:text-6xl md:text-8xl">
             {title.split('\n').map((line, i) => (

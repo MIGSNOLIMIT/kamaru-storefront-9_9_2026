@@ -9,7 +9,7 @@ export function Button({ className, variant = 'solid', ...props }: ButtonHTMLAtt
 }
 
 export function Media({ image, className = '', eager = false, compact = false }: { image: ImageRef; className?: string; eager?: boolean; compact?: boolean }) {
-  if (image.src) return <img src={image.src} alt={image.alt} width={image.width} height={image.height} loading={eager ? 'eager' : 'lazy'} decoding="async" className={twMerge('h-full w-full object-cover', className)} />
+  if (image.src) return <img src={image.src} alt={image.alt} width={image.width} height={image.height} loading={eager ? 'eager' : 'lazy'} decoding="async" className={twMerge('h-full w-full bg-ink/5 object-contain', className)} />
   if (compact) {
     return (
       <div

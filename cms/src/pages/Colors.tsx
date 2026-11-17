@@ -35,8 +35,8 @@ export function ColorsPage() {
   if (!data) return <p className="text-sm text-ink/50">Loading colors…</p>
   return (
     <div>
-      <PageHeader kicker="Catalog" title="Color palette" />
-      <p className="mb-6 max-w-2xl text-sm text-ink/60">Manage shared colors. Assign them to products from each product editor.</p>
+      <PageHeader kicker="Catalog" title="Colors" />
+      <p className="mb-6 max-w-2xl text-sm text-ink/60">Add the colors the shop sells. They stay on this tab, and you pick them when you create or edit a product.</p>
       <ColorPaletteEditor
         data={data}
         product={dummyProduct()}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { ColorOption, Product } from '../../../src/types'
-import { api, slugify, type Snapshot } from '../api'
+import { api, type Snapshot } from '../api'
 import { useConfirm } from '../confirm'
 import { Button, Field, Input, Notice } from '../ui'
 
@@ -106,52 +107,83 @@ export function ColorPaletteEditor({
     }
   }
 
+  const selected = (color: ColorOption) => product.colors.some((item) => item.id === color.id)
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {error && <Notice>{error}</Notice>}
-      <div className="space-y-2">
-        {data.colors.map((color) => (
-          <div key={color.id} className="rounded border border-ink/10 p-3">
-            {!paletteOnly && (
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
+      {assignOnly && (
+        <p className="text-sm text-ink/55">
+          Choose the colors this product is sold in. Add a new swatch on the <Link className="font-bold underline" to="/colors">Colors</Link> tab first.
+        </p>
+      )}
+      {!assignOnly && (
+        <div className="rounded-lg border border-ink/10 bg-white p-4">
+          <p className="text-sm font-bold">Add a color</p>
+          <p className="mt-1 text-xs text-ink/50">Saved colors stay on this tab and can be picked while creating or editing a product.</p>
+          <div className="mt-4 grid gap-3">
+            <Field label="Color name"><Input value={newName} placeholder="Forest Green" onChange={(e) => setNewName(e.target.value)} /></Field>
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="Color">
                 <input
-                  type="checkbox"
-                  checked={product.colors.some((c) => c.id === color.id)}
-                  onChange={(e) => toggleProductColor(color, e.target.checked)}
+                  type="color"
+                  aria-label="Pick a color"
+                  value={normalizeHex(newHex) ?? '#171717'}
+                  onChange={(e) => setNewHex(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-ink/20 bg-white p-1"
                 />
-                <span className="size-5 shrink-0 rounded-full border border-black/10" style={{ background: color.hex }} />
-                <span className="font-medium">{color.name}</span>
-                <span className="text-xs text-ink/45">{color.hex}</span>
-              </label>
-            )}
-            {paletteOnly && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="size-5 shrink-0 rounded-full border border-black/10" style={{ background: color.hex }} />
-                <span className="font-medium">{color.name}</span>
-                <span className="text-xs text-ink/45">{color.hex}</span>
+              </Field>
+              <Field label="Hex code">
+                <Input value={newHex} onChange={(e) => setNewHex(e.target.value)} placeholder="#596044" className="max-w-[8rem]" />
+              </Field>
+              <span className="mb-2 size-11 rounded-full border border-black/10" style={{ background: normalizeHex(newHex) ?? '#171717' }} />
+            </div>
+            <Button type="button" disabled={busy || !newName.trim()} onClick={() => void addColor()}>{busy ? 'Saving…' : 'Save color'}</Button>
+          </div>
+        </div>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {data.colors.map((color) => (
+          <div key={color.id} className={`rounded-lg border bg-white p-3 ${!paletteOnly && selected(color) ? 'border-clay' : 'border-ink/10'}`}>
+            {!paletteOnly ? (
+              <button type="button" onClick={() => toggleProductColor(color, !selected(color))} className="flex w-full items-center gap-3 text-left">
+                <span className="size-9 shrink-0 rounded-full border border-black/10" style={{ background: color.hex }} />
+                <span>
+                  <span className="block text-sm font-bold">{color.name}</span>
+                  <span className="text-xs text-ink/45">{color.hex} · {selected(color) ? 'Selected' : 'Click to select'}</span>
+                </span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="size-9 shrink-0 rounded-full border border-black/10" style={{ background: color.hex }} />
+                <span>
+                  <span className="block text-sm font-bold">{color.name}</span>
+                  <span className="text-xs text-ink/45">{color.hex}</span>
+                </span>
               </div>
             )}
             {!assignOnly && editId === color.id ? (
               <div className="mt-3 grid gap-2 border-t border-ink/10 pt-3">
                 <Field label="Name"><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></Field>
                 <div className="flex flex-wrap items-end gap-3">
-                  <Field label="Pick color">
+                  <Field label="Color">
                     <input
                       type="color"
+                      aria-label="Edit color"
                       value={normalizeHex(editHex) ?? '#000000'}
                       onChange={(e) => setEditHex(e.target.value)}
-                      className="h-11 w-16 cursor-pointer border border-ink/20 bg-white p-1"
+                      className="h-11 w-16 cursor-pointer rounded border border-ink/20 bg-white p-1"
                     />
                   </Field>
-                  <Field label="Hex"><Input value={editHex} onChange={(e) => setEditHex(e.target.value)} className="max-w-[8rem]" /></Field>
+                  <Field label="Hex code"><Input value={editHex} onChange={(e) => setEditHex(e.target.value)} className="max-w-[8rem]" /></Field>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="button" disabled={busy} onClick={() => void saveEdit(color.id)}>{busy ? 'Saving…' : 'Save color'}</Button>
+                  <Button type="button" disabled={busy} onClick={() => void saveEdit(color.id)}>{busy ? 'Saving…' : 'Save changes'}</Button>
                   <Button type="button" variant="ghost" onClick={() => setEditId(null)}>Cancel</Button>
                 </div>
               </div>
             ) : !assignOnly ? (
-              <div className="mt-2 flex gap-2">
+              <div className="mt-3 flex gap-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -164,42 +196,13 @@ export function ColorPaletteEditor({
                 >
                   Edit
                 </Button>
-                <Button type="button" variant="ghost" disabled={busy} onClick={() => void removeColor(color.id)}>
-                  Delete
-                </Button>
+                <Button type="button" variant="ghost" disabled={busy} onClick={() => void removeColor(color.id)}>Delete</Button>
               </div>
             ) : null}
           </div>
         ))}
       </div>
-      {!assignOnly && (
-      <div className="border-t border-ink/15 pt-4">
-        <p className="text-[10px] font-bold tracking-[.16em] text-ink/55">ADD NEW COLOR</p>
-        <div className="mt-3 grid gap-3">
-          <Field label="Color name"><Input value={newName} placeholder="e.g. Forest Green" onChange={(e) => setNewName(e.target.value)} /></Field>
-          <div className="flex flex-wrap items-end gap-3">
-            <Field label="Pick color">
-              <input
-                type="color"
-                value={normalizeHex(newHex) ?? '#171717'}
-                onChange={(e) => setNewHex(e.target.value)}
-                className="h-11 w-16 cursor-pointer border border-ink/20 bg-white p-1"
-              />
-            </Field>
-            <Field label="Hex code">
-              <Input value={newHex} onChange={(e) => setNewHex(e.target.value)} placeholder="#596044" className="max-w-[8rem]" />
-            </Field>
-          </div>
-          <p className="text-[10px] text-ink/45">Id preview: {newName.trim() ? slugify(newName) : '—'}</p>
-          <Button type="button" disabled={busy || !newName.trim()} onClick={() => void addColor()}>Add to catalog</Button>
-        </div>
-      </div>
-      )}
-      {assignOnly && (
-        <p className="text-xs text-ink/50">
-          Manage palette colors on the <a className="underline" href="/colors">Colors</a> screen.
-        </p>
-      )}
+      {!data.colors.length && <p className="text-sm text-ink/50">No colors yet. Add one above, then select it on a product.</p>}
     </div>
   )
 }

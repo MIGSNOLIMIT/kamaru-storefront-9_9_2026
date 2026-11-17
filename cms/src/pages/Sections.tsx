@@ -100,7 +100,8 @@ function HeroImages({
             </div>
           </div>
           <ImageField
-            label={`Hero image ${index + 1}`}
+            label={images.length > 1 ? `Slide ${index + 1}` : 'Hero photo'}
+            hint={images.length > 1 ? 'This slide is part of the homepage carousel. The whole photo fits the hero.' : 'One photo stays still. Add another slide to turn this into a carousel.'}
             image={image}
             onChange={(next) => onChange(images.map((item, i) => i === index ? next : item))}
           />

@@ -368,7 +368,8 @@ export function ProductEditor() {
           {product.images.map((image, index) => (
             <div key={image.id} className="space-y-2">
               <ImageField
-                label={`Image ${index + 1}`}
+                label={index === 0 ? 'Main photo' : `Extra photo ${index + 1}`}
+                hint={index === 0 ? 'This is the first picture shoppers see. The whole photo fits inside the frame.' : 'Another view of the same product. The whole photo fits inside the frame.'}
                 image={image}
                 onChange={(next) => set('images', product.images.map((img, i) => (i === index ? next : img)))}
               />
