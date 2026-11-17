@@ -98,7 +98,7 @@ export function Orders() {
             </div>
             <ul className="text-sm text-ink/65">
               {order.items.map((item) => (
-                <li key={`${item.productId}-${item.colorId}`}>{item.productName} × {item.quantity}</li>
+                <li key={`${item.productId}-${item.colorId}`}>{item.productName}{item.colorName ? ` · ${item.colorName}` : ''} × {item.quantity}</li>
               ))}
             </ul>
             <div className="grid gap-4 md:grid-cols-2">

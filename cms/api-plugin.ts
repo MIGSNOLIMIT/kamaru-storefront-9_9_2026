@@ -213,24 +213,26 @@ export async function handleCmsApi(req: IncomingMessage, res: ServerResponse) {
 
     if (method === 'GET' && pathname === '/api/admin/colors') return send(res, 200, data.colors)
     if (method === 'POST' && pathname === '/api/admin/colors') {
-      const body = await parseBody<{ name: string; hex: string; id?: string }>(req)
+      const body = await parseBody<{ name: string; hex: string; description?: string; id?: string }>(req)
       const hex = normalizeHex(body.hex)
       if (!body.name?.trim() || !hex) return send(res, 400, { error: 'Valid color name and hex (#RRGGBB) are required.' })
       const id = body.id?.trim() || slugifyColorId(body.name)
       if (data.colors.some((c) => c.id === id)) return send(res, 409, { error: 'A color with this id already exists.' })
-      const color: ColorOption = { id, name: body.name.trim(), hex }
+      const description = body.description?.trim() || undefined
+      const color: ColorOption = { id, name: body.name.trim(), hex, description }
       data.colors.push(color)
       await persist(data)
       return send(res, 201, color)
     }
     const adminColor = match(pathname, '/api/admin/colors/:id')
     if (adminColor && method === 'PUT') {
-      const body = await parseBody<{ name: string; hex: string }>(req)
+      const body = await parseBody<{ name: string; hex: string; description?: string }>(req)
       const hex = normalizeHex(body.hex)
       const index = data.colors.findIndex((c) => c.id === adminColor.id)
       if (index < 0) return send(res, 404, { error: 'Color not found.' })
       if (!body.name?.trim() || !hex) return send(res, 400, { error: 'Valid color name and hex (#RRGGBB) are required.' })
-      const updated: ColorOption = { id: adminColor.id, name: body.name.trim(), hex }
+      const description = body.description?.trim() || undefined
+      const updated: ColorOption = { id: adminColor.id, name: body.name.trim(), hex, description }
       propagateColor(data, updated)
       await persist(data)
       return send(res, 200, updated)

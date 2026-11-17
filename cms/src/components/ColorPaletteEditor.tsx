@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import type { ColorOption, Product } from '../../../src/types'
 import { api, type Snapshot } from '../api'
 import { useConfirm } from '../confirm'
-import { Button, Field, Input, Notice } from '../ui'
+import { Button, Field, Input, Notice, Textarea } from '../ui'
 
 function normalizeHex(input: string) {
   const raw = input.trim()
@@ -29,9 +29,11 @@ export function ColorPaletteEditor({
   const confirm = useConfirm()
   const [newName, setNewName] = useState('')
   const [newHex, setNewHex] = useState('#171717')
+  const [newDescription, setNewDescription] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editHex, setEditHex] = useState('#171717')
+  const [editDescription, setEditDescription] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -51,9 +53,10 @@ export function ColorPaletteEditor({
     setBusy(true)
     setError('')
     try {
-      await api.createColor(newName.trim(), hex)
+      await api.createColor(newName.trim(), hex, newDescription.trim() || undefined)
       setNewName('')
       setNewHex('#171717')
+      setNewDescription('')
       await refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not add color')
@@ -73,7 +76,7 @@ export function ColorPaletteEditor({
     setBusy(true)
     setError('')
     try {
-      await api.updateColor(id, editName.trim(), hex)
+      await api.updateColor(id, editName.trim(), hex, editDescription.trim() || undefined)
       setEditId(null)
       await refresh()
     } catch (e) {
@@ -103,7 +106,11 @@ export function ColorPaletteEditor({
       if (product.colors.some((c) => c.id === color.id)) return
       setProduct({ ...product, colors: [...product.colors, { ...color }] })
     } else {
-      setProduct({ ...product, colors: product.colors.filter((c) => c.id !== color.id) })
+      setProduct({
+        ...product,
+        colors: product.colors.filter((c) => c.id !== color.id),
+        images: product.images.map((image) => (image.colorId === color.id ? { ...image, colorId: undefined } : image)),
+      })
     }
   }
 
@@ -123,6 +130,7 @@ export function ColorPaletteEditor({
           <p className="mt-1 text-xs text-ink/50">Saved colors stay on this tab and can be picked while creating or editing a product.</p>
           <div className="mt-4 grid gap-3">
             <Field label="Color name"><Input value={newName} placeholder="Forest Green" onChange={(e) => setNewName(e.target.value)} /></Field>
+            <Field label="Description"><Textarea rows={2} value={newDescription} placeholder="Matte finish, shown on the product photo" onChange={(e) => setNewDescription(e.target.value)} /></Field>
             <div className="flex flex-wrap items-end gap-3">
               <Field label="Color">
                 <input
@@ -151,6 +159,7 @@ export function ColorPaletteEditor({
                 <span>
                   <span className="block text-sm font-bold">{color.name}</span>
                   <span className="text-xs text-ink/45">{color.hex} · {selected(color) ? 'Selected' : 'Click to select'}</span>
+                  {color.description && <span className="mt-1 block text-xs text-ink/55">{color.description}</span>}
                 </span>
               </button>
             ) : (
@@ -159,12 +168,14 @@ export function ColorPaletteEditor({
                 <span>
                   <span className="block text-sm font-bold">{color.name}</span>
                   <span className="text-xs text-ink/45">{color.hex}</span>
+                  {color.description && <span className="mt-1 block text-xs text-ink/55">{color.description}</span>}
                 </span>
               </div>
             )}
             {!assignOnly && editId === color.id ? (
               <div className="mt-3 grid gap-2 border-t border-ink/10 pt-3">
                 <Field label="Name"><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></Field>
+                <Field label="Description"><Textarea rows={2} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} /></Field>
                 <div className="flex flex-wrap items-end gap-3">
                   <Field label="Color">
                     <input
@@ -191,6 +202,7 @@ export function ColorPaletteEditor({
                     setEditId(color.id)
                     setEditName(color.name)
                     setEditHex(color.hex)
+                    setEditDescription(color.description ?? '')
                     setError('')
                   }}
                 >

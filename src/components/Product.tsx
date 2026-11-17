@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import type { Product } from '../types'
 import { useStore } from '../state/StoreContext'
 import { Button, Media, Modal } from './UI'
+import { imageForColor } from '../lib/product-color'
 
 export const formatPrice = (value: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(value)
 
@@ -18,7 +19,10 @@ export function QuantityStepper({ value, onChange }: { value: number; onChange: 
 export function ProductCard({ product, renderName }: { product: Product; renderName?: (product: Product) => ReactNode }) {
   const { wishlist, toggleWishlist, addToCart } = useStore()
   const [quick, setQuick] = useState(false)
+  const [colorId, setColorId] = useState(product.colors[0]?.id ?? '')
+  const [quantity, setQuantity] = useState(1)
   const wished = wishlist.includes(product.id)
+  const quickImage = imageForColor(product, colorId)
   return (
     <>
       <article className="group relative bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
@@ -28,7 +32,7 @@ export function ProductCard({ product, renderName }: { product: Product; renderN
           <button onClick={() => toggleWishlist(product.id)} aria-label={`${wished ? 'Remove from' : 'Add to'} wishlist`} className="absolute right-3 top-3 grid size-10 place-items-center bg-bone/95"><Heart size={18} fill={wished ? 'currentColor' : 'none'} className={wished ? 'text-clay' : ''} /></button>
           <div className="absolute inset-x-3 bottom-3 flex gap-2 opacity-100 transition md:translate-y-3 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:focus-within:translate-y-0 md:focus-within:opacity-100">
             <Button variant="light" className="flex-1 px-2" onClick={() => setQuick(true)}>Quick view</Button>
-            <Button className="flex-1 px-2" disabled={!product.inStock} onClick={() => addToCart(product)}>{product.inStock ? 'Add to cart' : 'Sold out'}</Button>
+            <Button className="flex-1 px-2" disabled={!product.inStock} onClick={() => (product.colors.length > 1 ? setQuick(true) : addToCart(product, product.colors[0]?.id, 1))}>{product.inStock ? 'Add to cart' : 'Sold out'}</Button>
           </div>
         </div>
         <div className="p-5">
@@ -38,7 +42,24 @@ export function ProductCard({ product, renderName }: { product: Product; renderN
         </div>
       </article>
       <Modal open={quick} onClose={() => setQuick(false)} title={`Quick view ${product.name}`}>
-        <div className="grid gap-8 md:grid-cols-2"><div className="aspect-[4/5]"><Media image={product.images[0]} /></div><div className="self-center"><p className="text-xs font-bold tracking-[.2em] text-clay">QUICK VIEW</p><h2 className="mt-2 text-3xl font-extrabold">{product.name}</h2><p className="mt-3 text-xl font-semibold">{formatPrice(product.price)}</p><ul className="my-5 space-y-2 text-sm text-ink/65">{product.features.slice(0,4).map((f) => <li key={f}>— {f}</li>)}</ul><Button className="w-full" disabled={!product.inStock} onClick={() => { addToCart(product); setQuick(false) }}><ShoppingBag className="mr-2 inline" size={16} /> Add to cart</Button><Link to={`/product/${product.slug}`} onClick={() => setQuick(false)} className="mt-4 block text-center text-xs font-bold uppercase tracking-widest underline">View full details</Link></div></div>
+        <div className="grid gap-8 md:grid-cols-2">
+          <div className="aspect-[4/5]"><Media image={quickImage} /></div>
+          <div className="self-center">
+            <p className="text-xs font-bold tracking-[.2em] text-clay">QUICK VIEW</p>
+            <h2 className="mt-2 text-3xl font-extrabold">{product.name}</h2>
+            <p className="mt-3 text-xl font-semibold">{formatPrice(product.price)}</p>
+            {product.colors.length > 0 && (
+              <div className="mt-5">
+                <p className="mb-2 text-xs font-bold tracking-widest">COLOR</p>
+                <ColorSwatches product={product} selected={colorId} onSelect={setColorId} />
+                <p className="mt-2 text-sm text-ink/60">{product.colors.find((color) => color.id === colorId)?.name}</p>
+              </div>
+            )}
+            <div className="my-5"><QuantityStepper value={quantity} onChange={setQuantity} /></div>
+            <Button className="w-full" disabled={!product.inStock || (product.colors.length > 0 && !colorId)} onClick={() => { addToCart(product, colorId || product.colors[0]?.id, quantity); setQuick(false) }}><ShoppingBag className="mr-2 inline" size={16} /> Add to cart</Button>
+            <Link to={`/product/${product.slug}`} onClick={() => setQuick(false)} className="mt-4 block text-center text-xs font-bold uppercase tracking-widest underline">View full details</Link>
+          </div>
+        </div>
       </Modal>
     </>
   )

@@ -7,6 +7,7 @@ import { useStore } from '../state/StoreContext'
 import { useLanguage } from '../state/LanguageContext'
 import { Button, Media, Modal } from './UI'
 import { formatPrice } from './Product'
+import { colorOf, imageForColor } from '../lib/product-color'
 
 const navKeys = [
   ['home', '/'],
@@ -209,13 +210,16 @@ function CartDrawer() {
               </div>
             </div>
           ) : (
-            cart.map((line) => (
+            cart.map((line) => {
+              const color = colorOf(line.product, line.colorId)
+              return (
               <div key={`${line.product.id}-${line.colorId}`} className="flex gap-4">
                 <div className="h-24 w-20 shrink-0">
-                  <Media image={line.product.images[0]} />
+                  <Media image={imageForColor(line.product, line.colorId)} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="font-bold">{line.product.name}</h3>
+                  {color && <p className="text-xs text-ink/55">{color.name}{color.description ? ` · ${color.description}` : ''}</p>}
                   <div className="mt-2 inline-flex items-center border border-ink/15">
                     <button type="button" aria-label="Decrease" className="p-2" onClick={() => updateQuantity(line.product.id, line.colorId, line.quantity - 1)}>
                       <Minus size={14} />
@@ -231,7 +235,8 @@ function CartDrawer() {
                   </button>
                 </div>
               </div>
-            ))
+              )
+            })
           )}
         </div>
         <div className="border-t border-ink/15 pt-5">

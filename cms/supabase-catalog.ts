@@ -181,6 +181,28 @@ function articleToRow(a: Article) {
   }
 }
 
+function mergeColorDescriptions(
+  colors: ContentStore['colors'],
+  products: Product[],
+): ContentStore['colors'] {
+  return colors.map((color) => {
+    if (color.description) return color
+    const saved = products.flatMap((product) => product.colors).find((item) => item.id === color.id && item.description)
+    return saved?.description ? { ...color, description: saved.description } : color
+  })
+}
+
+async function syncColors(sb: SupabaseClient, colors: ContentStore['colors']) {
+  const withDescription = colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex, description: c.description ?? '' }))
+  try {
+    await syncRowsById(sb, 'colors', withDescription)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : ''
+    if (!/description/i.test(message)) throw err
+    await syncRowsById(sb, 'colors', colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex })))
+  }
+}
+
 async function syncRowsById(
   sb: SupabaseClient,
   table: 'products' | 'categories' | 'articles' | 'colors',
@@ -237,7 +259,15 @@ export async function loadSupabaseSnapshot(): Promise<ContentStore | null> {
     articles: (arts.data ?? []).map((r) => rowToArticle(r)),
     homeSections: (secs.data ?? []).map((r) => r.section as HomeSection),
     siteSettings: (sett.data?.settings as SiteSettings) ?? seed().siteSettings,
-    colors: (cols.data ?? []).map((r) => ({ id: String(r.id), name: String(r.name), hex: String(r.hex) })),
+    colors: mergeColorDescriptions(
+      (cols.data ?? []).map((r) => ({
+        id: String(r.id),
+        name: String(r.name),
+        hex: String(r.hex),
+        description: r.description ? String(r.description) : undefined,
+      })),
+      (prods.data ?? []).map((r) => rowToProduct(r)),
+    ),
     aboutPage: page.data?.content as Record<string, unknown> | undefined,
   }
 }
@@ -249,7 +279,7 @@ export async function saveSupabaseSnapshot(data: ContentStore): Promise<void> {
   await syncRowsById(sb, 'products', data.products.map(productToRow))
   await syncRowsById(sb, 'categories', data.categories.map(categoryToRow))
   await syncRowsById(sb, 'articles', data.articles.map(articleToRow))
-  await syncRowsById(sb, 'colors', data.colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex })))
+  await syncColors(sb, data.colors)
 
   const homeIds = data.homeSections.map((s) => s.id)
   if (data.homeSections.length) {

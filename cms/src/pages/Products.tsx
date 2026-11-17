@@ -369,10 +369,30 @@ export function ProductEditor() {
             <div key={image.id} className="space-y-2">
               <ImageField
                 label={index === 0 ? 'Main photo' : `Extra photo ${index + 1}`}
-                hint={index === 0 ? 'This is the first picture shoppers see. The whole photo fits inside the frame.' : 'Another view of the same product. The whole photo fits inside the frame.'}
+                hint="The whole photo fits inside the frame. Match it to a color so shoppers see this picture when they pick that color."
                 image={image}
                 onChange={(next) => set('images', product.images.map((img, i) => (i === index ? next : img)))}
               />
+              <Field label="This photo shows">
+                <Select
+                  value={image.colorId ?? ''}
+                  onChange={(e) =>
+                    set(
+                      'images',
+                      product.images.map((img, i) =>
+                        i === index ? { ...img, colorId: e.target.value || undefined } : img,
+                      ),
+                    )
+                  }
+                >
+                  <option value="">Any color (general photo)</option>
+                  {product.colors.map((color) => (
+                    <option key={color.id} value={color.id}>
+                      {color.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
               <div className="flex gap-2">
                 <Button type="button" variant="ghost" disabled={index === 0} onClick={() => {
                   const next = [...product.images]

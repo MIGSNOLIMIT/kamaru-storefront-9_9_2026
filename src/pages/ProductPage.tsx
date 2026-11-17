@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Heart, ShieldCheck, Truck } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Breadcrumbs, Button, Media } from '../components/UI'
@@ -10,6 +10,7 @@ import { useStore } from '../state/StoreContext'
 import { useAuth } from '../state/AuthContext'
 import { useLanguage } from '../state/LanguageContext'
 import { Seo } from '../components/Seo'
+import { colorOf } from '../lib/product-color'
 
 export default function ProductPage() {
   const { slug } = useParams()
@@ -25,6 +26,17 @@ export default function ProductPage() {
   const [selectedColor, setSelectedColor] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [tab, setTab] = useState('description')
+  const syncedProductId = useRef('')
+
+  useEffect(() => {
+    if (!product || syncedProductId.current === product.id) return
+    syncedProductId.current = product.id
+    const id = product.colors[0]?.id ?? ''
+    setSelectedColor(id)
+    const idx = id ? product.images.findIndex((image) => image.colorId === id) : 0
+    setSelectedImage(idx >= 0 ? idx : 0)
+    setQuantity(1)
+  }, [product])
 
   if (loading) return <div className="container-site section-space"><div className="h-[600px] animate-pulse bg-ink/10" /></div>
   if (!product) {
@@ -37,13 +49,28 @@ export default function ProductPage() {
   }
 
   const colorId = selectedColor || product.colors[0]?.id
+  const chosenColor = colorOf(product, colorId)
+  const needsColor = product.colors.length > 0 && !colorId
   const accountNext = `/product/${product.slug}`
+
+  const chooseColor = (id: string) => {
+    setSelectedColor(id)
+    const idx = product.images.findIndex((image) => image.colorId === id)
+    if (idx >= 0) setSelectedImage(idx)
+  }
+
+  const chooseImage = (index: number) => {
+    setSelectedImage(index)
+    const tagged = product.images[index]?.colorId
+    if (tagged && product.colors.some((color) => color.id === tagged)) setSelectedColor(tagged)
+  }
 
   const buyNow = () => {
     if (!isAuthenticated) {
       navigate(`/account?next=${encodeURIComponent(accountNext)}`)
       return
     }
+    if (needsColor || !colorId) return
     if (moq && quantity < moq) return
     addToCart(product, colorId, quantity)
     trackEvent('begin_checkout')
@@ -76,7 +103,7 @@ export default function ProductPage() {
           <div className="aspect-[4/5]"><Media image={product.images[selectedImage]} /></div>
           <div className="mt-3 grid grid-cols-4 gap-3">
             {product.images.map((img, i) => (
-              <button key={img.id} type="button" onClick={() => setSelectedImage(i)} className={`aspect-square overflow-hidden border-2 ${i === selectedImage ? 'border-clay' : 'border-transparent'}`} aria-label={`View image ${i + 1}`}>
+              <button key={img.id} type="button" onClick={() => chooseImage(i)} className={`aspect-square overflow-hidden border-2 ${i === selectedImage ? 'border-clay' : 'border-transparent'}`} aria-label={`View image ${i + 1}`}>
                 <Media image={img} />
               </button>
             ))}
@@ -94,22 +121,37 @@ export default function ProductPage() {
           </div>
           <div className="my-7 border-y border-ink/15 py-7">
             <p className="mb-3 text-xs font-bold tracking-widest">COLOR</p>
-            <ColorSwatches product={product} selected={colorId} onSelect={setSelectedColor} />
+            {product.colors.length ? (
+              <>
+                <ColorSwatches product={product} selected={colorId} onSelect={chooseColor} />
+                {chosenColor ? (
+                  <p className="mt-3 text-sm">
+                    <span className="font-semibold">{chosenColor.name}</span>
+                    {chosenColor.description ? <span className="text-ink/55"> · {chosenColor.description}</span> : null}
+                  </p>
+                ) : (
+                  <p className="mt-3 text-sm text-ink/55">Choose a color before adding this bag.</p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-ink/55">This product has no color options yet.</p>
+            )}
           </div>
           {isAuthenticated ? (
             <div className="flex flex-col gap-3 sm:flex-row">
               <QuantityStepper value={quantity} onChange={setQuantity} />
               <Button
                 className="min-h-12 flex-1"
-                disabled={!product.inStock || (moq != null && quantity < moq)}
+                disabled={!product.inStock || needsColor || (moq != null && quantity < moq)}
                 onClick={() => {
+                  if (needsColor || !colorId) return
                   addToCart(product, colorId, quantity)
                   trackEvent('add_to_cart', { items: [{ item_id: product.id, quantity }] })
                 }}
               >
                 {product.inStock ? tr('addToCart') : 'Sold out'}
               </Button>
-              <Button className="min-h-12 flex-1" variant="outline" disabled={!product.inStock || (moq != null && quantity < moq)} onClick={buyNow}>
+              <Button className="min-h-12 flex-1" variant="outline" disabled={!product.inStock || needsColor || (moq != null && quantity < moq)} onClick={buyNow}>
                 {tr('buyNow')}
               </Button>
             </div>
@@ -155,7 +197,7 @@ export default function ProductPage() {
             <dl className="grid grid-cols-2 gap-4">
               <dt>Dimensions</dt><dd>{product.specs.dimensions ?? 'Pending'}</dd>
               <dt>Load Capacity</dt><dd>{product.specs.loadCapacity ?? 'Pending'}</dd>
-              <dt>Colors</dt><dd>{product.colors.map((c) => c.name).join(', ')}</dd>
+              <dt>Colors</dt><dd>{product.colors.map((c) => (c.description ? `${c.name} (${c.description})` : c.name)).join(', ') || 'None'}</dd>
             </dl>
           )}
         </div>

@@ -19,12 +19,15 @@ export interface ImageRef {
   alt: string
   width: number
   height: number
+  /** Product photo that shows this catalog color. */
+  colorId?: string
 }
 
 export interface ColorOption {
   id: string
   name: string
   hex: string
+  description?: string
 }
 
 export interface MarketplaceLinks {
@@ -184,6 +187,7 @@ export interface OrderItem {
   productName: string
   productSlug: string
   colorId: string
+  colorName?: string
   quantity: number
   unitPrice: number
 }

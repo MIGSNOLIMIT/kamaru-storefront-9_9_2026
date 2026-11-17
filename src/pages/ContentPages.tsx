@@ -10,6 +10,7 @@ import { useLanguage } from '../state/LanguageContext'
 import { commerceApi } from '../lib/commerceApi'
 import type { BulkOrder } from '../types'
 import { Seo } from '../components/Seo'
+import { colorOf, imageForColor } from '../lib/product-color'
 
 const inputClass = 'min-h-12 w-full border border-ink/20 px-4 font-normal tracking-normal'
 
@@ -155,11 +156,14 @@ export function Cart() {
       ) : (
         <div className="grid gap-9 lg:grid-cols-[1fr_360px]">
           <div className="space-y-4">
-            {cart.map((line) => (
+            {cart.map((line) => {
+              const color = colorOf(line.product, line.colorId)
+              return (
               <div key={`${line.product.id}-${line.colorId}`} className="flex flex-wrap items-center gap-5 bg-white p-4">
-                <div className="h-28 w-24"><Media image={line.product.images[0]} /></div>
+                <div className="h-28 w-24"><Media image={imageForColor(line.product, line.colorId)} /></div>
                 <div className="min-w-44 flex-1">
                   <Link className="font-display text-lg font-bold" to={`/product/${line.product.slug}`}>{line.product.name}</Link>
+                  {color && <p className="text-sm text-ink/55">{color.name}{color.description ? ` · ${color.description}` : ''}</p>}
                   <p className="text-sm text-ink/50">{formatPrice(line.product.price)}</p>
                 </div>
                 <div className="flex items-center border border-ink/15">
@@ -170,7 +174,8 @@ export function Cart() {
                 <strong className="w-28 text-right">{formatPrice(line.product.price * line.quantity)}</strong>
                 <button type="button" onClick={() => removeFromCart(line.product.id, line.colorId)} aria-label="Remove item" className="p-3"><Trash2 size={18} /></button>
               </div>
-            ))}
+              )
+            })}
           </div>
           <aside className="h-fit bg-ink p-7 text-white">
             <h2 className="text-xl font-extrabold">BULK ORDER SUMMARY</h2>
@@ -226,6 +231,11 @@ export function Account() {
                 <li key={o.id} className="border border-ink/10 p-4 text-sm">
                   <p className="font-bold">{formatPrice(o.subtotal)} · {o.status.replace('_', ' ')}</p>
                   <p className="text-ink/50">{new Date(o.createdAt).toLocaleString()} · {o.items.length} line(s)</p>
+                  <ul className="mt-2 space-y-1 text-ink/60">
+                    {o.items.map((item) => (
+                      <li key={`${item.productId}-${item.colorId}`}>{item.productName}{item.colorName ? ` · ${item.colorName}` : ''} × {item.quantity}</li>
+                    ))}
+                  </ul>
                 </li>
               ))}
             </ul>

@@ -55,10 +55,10 @@ export const api = {
   getAbout: () => request<AboutPageContent | null>('/api/admin/about'),
   saveAbout: (content: AboutPageContent) => request<AboutPageContent>('/api/admin/about', { method: 'PUT', body: JSON.stringify(content) }),
   listColors: () => request<ColorOption[]>('/api/admin/colors'),
-  createColor: (name: string, hex: string) =>
-    request<ColorOption>('/api/admin/colors', { method: 'POST', body: JSON.stringify({ name, hex }) }),
-  updateColor: (id: string, name: string, hex: string) =>
-    request<ColorOption>(`/api/admin/colors/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ name, hex }) }),
+  createColor: (name: string, hex: string, description?: string) =>
+    request<ColorOption>('/api/admin/colors', { method: 'POST', body: JSON.stringify({ name, hex, description }) }),
+  updateColor: (id: string, name: string, hex: string, description?: string) =>
+    request<ColorOption>(`/api/admin/colors/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ name, hex, description }) }),
   deleteColor: (id: string) => request<{ ok: boolean }>(`/api/admin/colors/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listMedia: () => request<{ id: string; public_url: string; path: string; created_at: string }[]>('/api/admin/media'),
   deleteMedia: (id: string) => request<{ ok: boolean }>(`/api/admin/media/${encodeURIComponent(id)}`, { method: 'DELETE' }),

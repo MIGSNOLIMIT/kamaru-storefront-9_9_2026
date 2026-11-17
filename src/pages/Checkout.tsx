@@ -11,6 +11,7 @@ import { trackEvent } from '../lib/analytics'
 import { gcashQrDataUrl } from '../lib/gcashQr'
 import type { FulfillmentMethod, PaymentMethod, SiteSettings } from '../types'
 import { Seo } from '../components/Seo'
+import { colorOf, imageForColor } from '../lib/product-color'
 
 const fieldClass = 'min-h-12 w-full border border-ink/20 px-4 font-normal tracking-normal'
 
@@ -117,6 +118,7 @@ export default function Checkout() {
           productName: line.product.name,
           productSlug: line.product.slug,
           colorId: line.colorId,
+          colorName: colorOf(line.product, line.colorId)?.name,
           quantity: line.quantity,
           unitPrice: line.product.price,
         })),
@@ -197,18 +199,22 @@ export default function Checkout() {
         <aside className="h-fit min-w-0 overflow-hidden rounded-sm bg-ink p-6 text-white lg:sticky lg:top-24">
           <h2 className="text-xl font-extrabold">{tr('bulkCartTitle')}</h2>
           <ul className="mt-5 space-y-4">
-            {cart.map((line) => (
+            {cart.map((line) => {
+              const color = colorOf(line.product, line.colorId)
+              return (
               <li key={`${line.product.id}-${line.colorId}`} className="flex gap-3">
                 <div className="h-16 w-14 shrink-0 overflow-hidden rounded-sm bg-white/10">
-                  <Media compact image={line.product.images[0]} className="h-full w-full" />
+                  <Media compact image={imageForColor(line.product, line.colorId)} className="h-full w-full" />
                 </div>
                 <div className="min-w-0 flex-1 text-sm">
                   <p className="truncate font-bold">{line.product.name}</p>
+                  {color && <p className="truncate text-white/70">{color.name}</p>}
                   <p className="text-white/55">Qty {line.quantity}</p>
                   <p className="font-semibold">{formatPrice(line.product.price * line.quantity)}</p>
                 </div>
               </li>
-            ))}
+              )
+            })}
           </ul>
           <div className="mt-6 flex justify-between border-t border-white/15 pt-4 text-sm font-bold">
             <span>Subtotal</span>

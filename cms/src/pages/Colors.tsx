@@ -36,7 +36,7 @@ export function ColorsPage() {
   return (
     <div>
       <PageHeader kicker="Catalog" title="Colors" />
-      <p className="mb-6 max-w-2xl text-sm text-ink/60">Add the colors the shop sells. They stay on this tab, and you pick them when you create or edit a product.</p>
+      <p className="mb-6 max-w-2xl text-sm text-ink/60">Add the colors the shop sells, with a name and a short description. They stay on this tab. On a product, pick those colors and match each photo to one of them.</p>
       <ColorPaletteEditor
         data={data}
         product={dummyProduct()}
